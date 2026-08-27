@@ -76,9 +76,10 @@
   <h1>Ledger</h1>
   <p class="sub" id="tagline">Loading your books…</p>
 
-  <div class="row" style="margin-bottom:16px;">
-    <select id="monthSelect" class="month-select"></select>
+  <div class="row" style="margin-bottom:16px;gap:6px;">
+    <select id="monthSelect" class="month-select" style="flex:1;"></select>
     <button class="btn secondary" id="prevBtn" style="padding:8px 12px;">‹</button>
+    <button class="btn secondary" id="nextBtn" style="padding:8px 12px;">›</button>
   </div>
 
   <div class="card">
@@ -219,7 +220,7 @@ function renderMonthSelect(){
   const opts = new Set();
   opts.add(currentMonth);
   const now = new Date();
-  for(let i=0;i<12;i++){
+  for(let i=-3;i<12;i++){
     const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
     opts.add(d.toISOString().slice(0,7));
   }
@@ -395,6 +396,11 @@ document.getElementById('monthSelect').addEventListener('change', (e) => switchM
 document.getElementById('prevBtn').addEventListener('click', () => {
   const [y,m] = currentMonth.split('-').map(Number);
   const d = new Date(y, m-2, 1);
+  switchMonth(d.toISOString().slice(0,7));
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y, m, 1);
   switchMonth(d.toISOString().slice(0,7));
 });
 
