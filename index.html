@@ -34,14 +34,12 @@
   select:focus,input:focus{outline:none;border-color:var(--brass);}
   .month-select{font-family:'IBM Plex Mono',monospace;font-weight:500;}
   h2{font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin:0 0 12px;}
-  .cat-row{display:grid;grid-template-columns:1fr 90px 34px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--paper-line);}
+  .cat-row{display:grid;grid-template-columns:1fr 80px 60px 34px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--paper-line);}
   .cat-row:last-child{border-bottom:none;}
-  .cat-name{font-size:14px;}
-  .cat-row input{text-align:right;font-family:'IBM Plex Mono',monospace;padding:6px 8px;}
-  .cat-row button{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:16px;padding:2px;}
-  .cat-row button:hover{color:var(--brick);}
-  .add-cat{display:flex;gap:8px;margin-top:10px;}
-  .add-cat input{flex:1;}
+  .cat-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cat-row input{text-align:right;font-family:'IBM Plex Mono',monospace;padding:6px 6px;font-size:13px;}
+  .cat-due-label{font-size:9.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px;}
+  .add-cat{display:grid;grid-template-columns:1fr 70px 60px auto;gap:6px;margin-top:10px;align-items:end;}
   .btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:8px 14px;border-radius:4px;border:1px solid var(--brass);background:var(--brass);color:#fff;cursor:pointer;white-space:nowrap;}
   .btn:hover{opacity:.9;}
   .btn.secondary{background:#fff;color:var(--brass);}
@@ -52,7 +50,10 @@
   .exp-row:last-child{border-bottom:none;}
   .exp-left{display:flex;flex-direction:column;min-width:0;}
   .exp-cat{font-size:13.5px;font-weight:500;}
+  .cat-row button{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:16px;padding:2px;}
+  .cat-row button:hover{color:var(--brick);}
   .exp-note{font-size:12px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .exp-paid{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
   .exp-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
   .exp-amt{font-family:'IBM Plex Mono',monospace;font-size:14px;}
   .exp-del{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:15px;}
@@ -66,6 +67,8 @@
   .pill{font-size:11px;font-family:'IBM Plex Mono',monospace;padding:2px 7px;border-radius:10px;}
   .pill.under{background:var(--sage-bg);color:var(--sage);}
   .pill.over{background:var(--brick-bg);color:var(--brick);}
+  .due-badge{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .due-badge.overdue{color:var(--brick);font-weight:500;}
 </style>
 </head>
 <body>
@@ -100,8 +103,9 @@
     <h2>Categories &amp; budget</h2>
     <div id="catList"></div>
     <div class="add-cat">
-      <input type="text" id="newCatName" placeholder="New category, e.g. Groceries">
-      <input type="number" id="newCatAmt" placeholder="$" style="width:80px;">
+      <input type="text" id="newCatName" placeholder="New category">
+      <input type="number" id="newCatAmt" placeholder="$">
+      <input type="number" id="newCatDue" placeholder="Due day" min="1" max="31">
       <button class="btn" id="addCatBtn">Add</button>
     </div>
   </div>
@@ -117,8 +121,9 @@
       <select id="expCat"></select>
       <input type="number" id="expAmt" placeholder="Amount">
     </div>
-    <div class="form-grid full">
+    <div class="form-grid">
       <input type="text" id="expNote" placeholder="Note (optional)">
+      <input type="date" id="expPaidDate">
     </div>
     <div id="expError" style="font-size:12px;color:var(--brick);margin-bottom:8px;display:none;"></div>
     <button class="btn" id="addExpBtn" style="width:100%;">Add expense</button>
@@ -168,10 +173,24 @@ async function loadCategories(){
     const res = await store.get('budget-categories');
     categories = res ? JSON.parse(res.value) : {};
   }catch(e){ categories = {}; }
-  if(Object.keys(categories).length === 0){
-    categories = {Groceries:400, Rent:1200, Transport:150, Dining:150, Fun:100};
-    await saveCategories();
+  let migrated = false;
+  for(const name of Object.keys(categories)){
+    if(typeof categories[name] === 'number'){
+      categories[name] = { amount: categories[name], dueDay: null };
+      migrated = true;
+    }
   }
+  if(Object.keys(categories).length === 0){
+    categories = {
+      Groceries:{amount:400, dueDay:null},
+      Rent:{amount:1200, dueDay:1},
+      Transport:{amount:150, dueDay:null},
+      Dining:{amount:150, dueDay:null},
+      Fun:{amount:100, dueDay:null}
+    };
+    migrated = true;
+  }
+  if(migrated) await saveCategories();
 }
 async function saveCategories(){
   await store.set('budget-categories', JSON.stringify(categories));
@@ -215,16 +234,25 @@ function renderCatList(){
   list.innerHTML = names.map(name => `
     <div class="cat-row">
       <div class="cat-name">${escapeHtml(name)}</div>
-      <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name]}">
+      <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}">
+      <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due" min="1" max="31" value="${categories[name].dueDay || ''}">
       <button data-cat="${escapeHtml(name)}" class="del-cat-btn" aria-label="Remove ${escapeHtml(name)}">×</button>
     </div>
   `).join('');
   list.querySelectorAll('.cat-amt-input').forEach(inp => {
     inp.addEventListener('input', async (e) => {
       const cat = e.target.getAttribute('data-cat');
-      const val = parseFloat(e.target.value) || 0;
-      categories[cat] = val;
+      categories[cat].amount = parseFloat(e.target.value) || 0;
       renderStats();
+      renderCatSummary();
+      await saveCategories();
+    });
+  });
+  list.querySelectorAll('.cat-due-input').forEach(inp => {
+    inp.addEventListener('input', async (e) => {
+      const cat = e.target.getAttribute('data-cat');
+      const val = parseInt(e.target.value, 10);
+      categories[cat].dueDay = (val >= 1 && val <= 31) ? val : null;
       renderCatSummary();
       await saveCategories();
     });
@@ -246,7 +274,7 @@ function renderExpCatOptions(){
 }
 
 function renderStats(){
-  const totalBudget = Object.values(categories).reduce((a,b)=>a+b,0);
+  const totalBudget = Object.values(categories).reduce((a,c)=>a+c.amount,0);
   const totalSpent = expenses.reduce((a,e)=>a+e.amount,0);
   const remain = totalBudget - totalSpent;
   const unbudgeted = income - totalBudget;
@@ -273,17 +301,26 @@ function renderCatSummary(){
   const box = document.getElementById('catSummary');
   const names = Object.keys(categories);
   if(names.length===0){ box.innerHTML = '<div class="empty">Nothing to show yet.</div>'; return; }
+  const todayDay = new Date().getDate();
   box.innerHTML = names.map(name => {
-    const budget = categories[name];
+    const budget = categories[name].amount;
+    const dueDay = categories[name].dueDay;
     const spent = expenses.filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
     const pct = budget > 0 ? Math.min(100, (spent/budget)*100) : (spent>0?100:0);
     const over = spent > budget;
+    const unpaid = dueDay && spent < budget;
+    const overdue = unpaid && todayDay > dueDay;
+    let dueText = '';
+    if(dueDay){
+      dueText = overdue ? `Overdue — due day ${dueDay}` : `Due day ${dueDay}`;
+    }
     return `
       <div class="cat-summary">
         <div class="row">
           <span class="cat-name">${escapeHtml(name)}</span>
           <span class="pill ${over?'over':'under'}">${fmt(spent)} / ${fmt(budget)}</span>
         </div>
+        ${dueText ? `<span class="due-badge ${overdue?'overdue':''}">${dueText}</span>` : ''}
         <div class="bar-track"><div class="bar-fill ${over?'over':''}" style="width:${pct}%;"></div></div>
       </div>
     `;
@@ -293,19 +330,22 @@ function renderCatSummary(){
 function renderExpenseList(){
   const box = document.getElementById('expList');
   if(expenses.length===0){ box.innerHTML = '<div class="empty">No expenses logged for this month.</div>'; return; }
-  const sorted = [...expenses].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-  box.innerHTML = sorted.map(e => `
+  const sorted = [...expenses].sort((a,b)=> (b.paidDate||b.date||'').localeCompare(a.paidDate||a.date||''));
+  box.innerHTML = sorted.map(e => {
+    return `
     <div class="exp-row">
       <div class="exp-left">
         <span class="exp-cat">${escapeHtml(e.category)}</span>
         ${e.note ? `<span class="exp-note">${escapeHtml(e.note)}</span>` : ''}
+        ${e.paidDate ? `<span class="exp-paid">Paid ${formatDue(e.paidDate)}</span>` : ''}
       </div>
       <div class="exp-right">
         <span class="exp-amt">${fmt(e.amount)}</span>
         <button class="exp-del" data-id="${e.id}" aria-label="Delete expense">×</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
   box.querySelectorAll('.exp-del').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.target.getAttribute('data-id');
@@ -316,6 +356,11 @@ function renderExpenseList(){
   });
 }
 
+function formatDue(iso){
+  const [y,m,d] = iso.split('-');
+  return monthNames[parseInt(m,10)-1].slice(0,3) + ' ' + parseInt(d,10);
+}
+
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -323,6 +368,8 @@ function escapeHtml(s){
 function renderAll(){
   document.getElementById('tagline').textContent = monthLabel(currentMonth) + ' · kept right here, on this device';
   document.getElementById('incomeInput').value = income || '';
+  const paidInput = document.getElementById('expPaidDate');
+  if(paidInput && !paidInput.value) paidInput.value = new Date().toISOString().slice(0,10);
   renderMonthSelect();
   renderCatList();
   renderExpCatOptions();
@@ -354,13 +401,16 @@ document.getElementById('prevBtn').addEventListener('click', () => {
 document.getElementById('addCatBtn').addEventListener('click', async () => {
   const nameInput = document.getElementById('newCatName');
   const amtInput = document.getElementById('newCatAmt');
+  const dueInput = document.getElementById('newCatDue');
   const name = nameInput.value.trim();
   const amt = parseFloat(amtInput.value) || 0;
+  const dueVal = parseInt(dueInput.value, 10);
   if(!name) return;
-  categories[name] = amt;
+  categories[name] = { amount: amt, dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null };
   await saveCategories();
   nameInput.value = '';
   amtInput.value = '';
+  dueInput.value = '';
   renderAll();
 });
 
@@ -368,21 +418,25 @@ document.getElementById('addExpBtn').addEventListener('click', async () => {
   const cat = document.getElementById('expCat').value;
   const amtInput = document.getElementById('expAmt');
   const noteInput = document.getElementById('expNote');
+  const paidInput = document.getElementById('expPaidDate');
   const errEl = document.getElementById('expError');
   const amt = parseFloat(amtInput.value);
   errEl.style.display = 'none';
   if(!cat){ errEl.textContent = 'Add a category first.'; errEl.style.display='block'; return; }
   if(!amtInput.value || isNaN(amt) || amt <= 0){ errEl.textContent = 'Enter an amount greater than 0.'; errEl.style.display='block'; return; }
+  const today = new Date().toISOString().slice(0,10);
   expenses.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
     category: cat,
     amount: amt,
     note: noteInput.value.trim(),
-    date: new Date().toISOString().slice(0,10)
+    paidDate: paidInput.value || today,
+    date: today
   });
   await saveExpenses();
   amtInput.value = '';
   noteInput.value = '';
+  paidInput.value = '';
   renderAll();
 });
 
