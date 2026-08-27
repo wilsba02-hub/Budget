@@ -302,6 +302,8 @@ function renderCatSummary(){
   const box = document.getElementById('catSummary');
   const names = Object.keys(categories);
   if(names.length===0){ box.innerHTML = '<div class="empty">Nothing to show yet.</div>'; return; }
+  const realCurrentMonth = new Date().toISOString().slice(0,7);
+  const isViewingRealCurrentMonth = currentMonth === realCurrentMonth;
   const todayDay = new Date().getDate();
   box.innerHTML = names.map(name => {
     const budget = categories[name].amount;
@@ -310,7 +312,7 @@ function renderCatSummary(){
     const pct = budget > 0 ? Math.min(100, (spent/budget)*100) : (spent>0?100:0);
     const over = spent > budget;
     const unpaid = dueDay && spent < budget;
-    const overdue = unpaid && todayDay > dueDay;
+    const overdue = isViewingRealCurrentMonth && unpaid && todayDay > dueDay;
     let dueText = '';
     if(dueDay){
       dueText = overdue ? `Overdue — due day ${dueDay}` : `Due day ${dueDay}`;
