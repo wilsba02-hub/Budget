@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Ledger — Monthly Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,17 +90,26 @@
       <h2 style="margin:0;">Expected income</h2>
       <input type="number" id="incomeInput" placeholder="$0" style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;">
     </div>
+    <div class="row" style="margin-top:10px;">
+      <h2 style="margin:0;">Actual income</h2>
+      <input type="number" id="actualIncomeInput" placeholder="$0" style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;">
+    </div>
   </div>
 
   <div class="stat-grid">
-    <div class="stat"><div class="label">Income</div><div class="num" id="statIncome">$0</div></div>
+    <div class="stat"><div class="label">Expected</div><div class="num" id="statIncome">$0</div></div>
+    <div class="stat"><div class="label">Actual</div><div class="num" id="statActualIncome">$0</div></div>
+    <div class="stat"><div class="label">Income diff</div><div class="num" id="statIncomeDiff">$0</div></div>
+  </div>
+  <div class="stat-grid">
     <div class="stat"><div class="label">Budgeted</div><div class="num" id="statBudget">$0</div></div>
+    <div class="stat"><div class="label">Spent</div><div class="num" id="statSpent">$0</div></div>
     <div class="stat"><div class="label">Unbudgeted</div><div class="num" id="statUnbudgeted">$0</div></div>
   </div>
   <div class="stat-grid">
-    <div class="stat"><div class="label">Spent</div><div class="num" id="statSpent">$0</div></div>
     <div class="stat"><div class="label">Remaining</div><div class="num" id="statRemain">$0</div></div>
-    <div class="stat"><div class="label">Left to spend</div><div class="num" id="statLeftIncome">$0</div></div>
+    <div class="stat"><div class="label">Left (expected)</div><div class="num" id="statLeftIncome">$0</div></div>
+    <div class="stat"><div class="label">Left (actual)</div><div class="num" id="statLeftActual">$0</div></div>
   </div>
 
   <div class="card">
@@ -141,7 +153,7 @@ const monthNames = ["January","February","March","April","May","June","July","Au
 let currentMonth = new Date().toISOString().slice(0,7);
 let categories = {};
 let expenses = [];
-let income = 0;
+let income = { expected: 0, actual: 0 };
 
 function fmt(n){
   return '$' + Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2});
@@ -199,11 +211,20 @@ async function saveCategories(){
 async function loadIncome(){
   try{
     const res = await store.get('income:' + currentMonth);
-    income = res ? parseFloat(res.value) || 0 : 0;
-  }catch(e){ income = 0; }
+    if(!res){ income = { expected: 0, actual: 0 }; return; }
+    const parsed = JSON.parse(res.value);
+    if(typeof parsed === 'number'){
+      income = { expected: parsed, actual: 0 };
+    } else {
+      income = { expected: parsed.expected || 0, actual: parsed.actual || 0 };
+    }
+  }catch(e){
+    const num = parseFloat((await store.get('income:' + currentMonth))?.value);
+    income = { expected: isNaN(num) ? 0 : num, actual: 0 };
+  }
 }
 async function saveIncome(){
-  await store.set('income:' + currentMonth, String(income));
+  await store.set('income:' + currentMonth, JSON.stringify(income));
 }
 async function loadExpenses(){
   try{
@@ -278,10 +299,18 @@ function renderStats(){
   const totalBudget = Object.values(categories).reduce((a,c)=>a+c.amount,0);
   const totalSpent = expenses.reduce((a,e)=>a+e.amount,0);
   const remain = totalBudget - totalSpent;
-  const unbudgeted = income - totalBudget;
-  const leftIncome = income - totalSpent;
+  const unbudgeted = income.expected - totalBudget;
+  const leftExpected = income.expected - totalSpent;
+  const leftActual = income.actual - totalSpent;
+  const incomeDiff = income.actual - income.expected;
 
-  document.getElementById('statIncome').textContent = fmt(income);
+  document.getElementById('statIncome').textContent = fmt(income.expected);
+  document.getElementById('statActualIncome').textContent = fmt(income.actual);
+
+  const diffEl = document.getElementById('statIncomeDiff');
+  diffEl.textContent = (incomeDiff >= 0 ? '+' : '') + fmt(incomeDiff);
+  diffEl.style.color = incomeDiff < 0 ? 'var(--brick)' : 'var(--sage)';
+
   document.getElementById('statBudget').textContent = fmt(totalBudget);
   document.getElementById('statSpent').textContent = fmt(totalSpent);
 
@@ -294,8 +323,12 @@ function renderStats(){
   remainEl.style.color = remain < 0 ? 'var(--brick)' : 'var(--sage)';
 
   const leftIncomeEl = document.getElementById('statLeftIncome');
-  leftIncomeEl.textContent = fmt(leftIncome);
-  leftIncomeEl.style.color = leftIncome < 0 ? 'var(--brick)' : 'var(--sage)';
+  leftIncomeEl.textContent = fmt(leftExpected);
+  leftIncomeEl.style.color = leftExpected < 0 ? 'var(--brick)' : 'var(--sage)';
+
+  const leftActualEl = document.getElementById('statLeftActual');
+  leftActualEl.textContent = fmt(leftActual);
+  leftActualEl.style.color = leftActual < 0 ? 'var(--brick)' : 'var(--sage)';
 }
 
 function renderCatSummary(){
@@ -370,7 +403,8 @@ function escapeHtml(s){
 
 function renderAll(){
   document.getElementById('tagline').textContent = monthLabel(currentMonth) + ' · kept right here, on this device';
-  document.getElementById('incomeInput').value = income || '';
+  document.getElementById('incomeInput').value = income.expected || '';
+  document.getElementById('actualIncomeInput').value = income.actual || '';
   const paidInput = document.getElementById('expPaidDate');
   if(paidInput && !paidInput.value) paidInput.value = new Date().toISOString().slice(0,10);
   renderMonthSelect();
@@ -388,11 +422,27 @@ async function switchMonth(ym){
   renderAll();
 }
 
-document.getElementById('incomeInput').addEventListener('input', async (e) => {
-  income = parseFloat(e.target.value) || 0;
+function syncExpectedIncome(e){
+  income.expected = parseFloat(e.target.value) || 0;
   renderStats();
-  await saveIncome();
-});
+  saveIncome();
+}
+function syncActualIncome(e){
+  income.actual = parseFloat(e.target.value) || 0;
+  renderStats();
+  saveIncome();
+}
+const incomeInputEl = document.getElementById('incomeInput');
+incomeInputEl.addEventListener('input', syncExpectedIncome);
+incomeInputEl.addEventListener('change', syncExpectedIncome);
+incomeInputEl.addEventListener('keyup', syncExpectedIncome);
+incomeInputEl.addEventListener('blur', syncExpectedIncome);
+
+const actualIncomeInputEl = document.getElementById('actualIncomeInput');
+actualIncomeInputEl.addEventListener('input', syncActualIncome);
+actualIncomeInputEl.addEventListener('change', syncActualIncome);
+actualIncomeInputEl.addEventListener('keyup', syncActualIncome);
+actualIncomeInputEl.addEventListener('blur', syncActualIncome);
 
 document.getElementById('monthSelect').addEventListener('change', (e) => switchMonth(e.target.value));
 document.getElementById('prevBtn').addEventListener('click', () => {
