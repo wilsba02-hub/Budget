@@ -33,6 +33,7 @@
   .card{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;padding:16px 18px;margin-bottom:16px;}
   .row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
   .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
+  .stat-grid-cols{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:10px;margin-bottom:16px;}
   .stat{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;padding:12px 10px;text-align:center;}
   .stat .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:4px;}
   .stat .num{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:700;}
@@ -159,20 +160,16 @@
     </div>
   </div>
 
-  <div class="stat-grid">
+  <div class="stat-grid-cols">
     <div class="stat"><div class="label">Expected</div><div class="num" id="statIncome">$0</div></div>
-    <div class="stat"><div class="label">Actual</div><div class="num" id="statActualIncome">$0</div></div>
-    <div class="stat"><div class="label">Income diff</div><div class="num" id="statIncomeDiff">$0</div></div>
-  </div>
-  <div class="stat-grid">
-    <div class="stat"><div class="label">Budgeted</div><div class="num" id="statBudget">$0</div></div>
-    <div class="stat"><div class="label">Spent</div><div class="num" id="statSpent">$0</div></div>
-    <div class="stat"><div class="label">Unbudgeted</div><div class="num" id="statUnbudgeted">$0</div></div>
-  </div>
-  <div class="stat-grid">
+    <div class="stat"><div class="label">Budgeted</div><div class="num" id="statBudgetTotal">$0</div></div>
     <div class="stat"><div class="label">Remaining</div><div class="num" id="statRemain">$0</div></div>
-    <div class="stat"><div class="label">Left (expected)</div><div class="num" id="statLeftIncome">$0</div></div>
-    <div class="stat"><div class="label">Left (actual)</div><div class="num" id="statLeftActual">$0</div></div>
+    <div class="stat"><div class="label">Actual</div><div class="num" id="statActualIncome">$0</div></div>
+    <div class="stat"><div class="label">Spent</div><div class="num" id="statSpent">$0</div></div>
+    <div class="stat"><div class="label">Left actual</div><div class="num" id="statLeftActual">$0</div></div>
+    <div class="stat"><div class="label">Income diff</div><div class="num" id="statIncomeDiff">$0</div></div>
+    <div class="stat"><div class="label">Over/under budget</div><div class="num" id="statOverUnder">$0</div></div>
+    <div class="stat"><div class="label">Remaining (actual)</div><div class="num" id="statRemainActual">$0</div></div>
   </div>
 
   <div class="card">
@@ -715,42 +712,43 @@ function renderExpCatOptions(){
 function renderStats(){
   const totalBudget = Object.values(categories).reduce((a,c)=>a+c.amount,0);
   const totalSpent = expenses.reduce((a,e)=>a+e.amount,0);
-  const remain = totalBudget - totalSpent;
 
   const monthPaychecks = getPaycheckDatesInMonth(currentMonth);
   const totalExpectedIncome = monthPaychecks.reduce((a,d)=>a+getPaycheckIncome(dateKey(d)).expected,0);
   const totalActualIncome = monthPaychecks.reduce((a,d)=>a+getPaycheckIncome(dateKey(d)).actual,0);
 
-  const unbudgeted = totalExpectedIncome - totalBudget;
-  const leftExpected = totalExpectedIncome - totalSpent;
+  const remain = totalExpectedIncome - totalBudget;
   const leftActual = totalActualIncome - totalSpent;
   const incomeDiff = totalActualIncome - totalExpectedIncome;
+  const overUnder = totalSpent - totalBudget;
 
+  // Column 1: Expected, Budgeted, Remaining
   document.getElementById('statIncome').textContent = fmt(totalExpectedIncome);
-  document.getElementById('statActualIncome').textContent = fmt(totalActualIncome);
-
-  const diffEl = document.getElementById('statIncomeDiff');
-  diffEl.textContent = (incomeDiff >= 0 ? '+' : '') + fmt(incomeDiff);
-  diffEl.style.color = incomeDiff < 0 ? 'var(--brick)' : 'var(--sage)';
-
-  document.getElementById('statBudget').textContent = fmt(totalBudget);
-  document.getElementById('statSpent').textContent = fmt(totalSpent);
-
-  const unbudgetedEl = document.getElementById('statUnbudgeted');
-  unbudgetedEl.textContent = fmt(unbudgeted);
-  unbudgetedEl.style.color = unbudgeted < 0 ? 'var(--brick)' : 'var(--ink)';
-
+  document.getElementById('statBudgetTotal').textContent = fmt(totalBudget);
   const remainEl = document.getElementById('statRemain');
   remainEl.textContent = fmt(remain);
   remainEl.style.color = remain < 0 ? 'var(--brick)' : 'var(--sage)';
 
-  const leftIncomeEl = document.getElementById('statLeftIncome');
-  leftIncomeEl.textContent = fmt(leftExpected);
-  leftIncomeEl.style.color = leftExpected < 0 ? 'var(--brick)' : 'var(--sage)';
-
+  // Column 2: Actual, Spent, Left actual
+  document.getElementById('statActualIncome').textContent = fmt(totalActualIncome);
+  document.getElementById('statSpent').textContent = fmt(totalSpent);
   const leftActualEl = document.getElementById('statLeftActual');
   leftActualEl.textContent = fmt(leftActual);
   leftActualEl.style.color = leftActual < 0 ? 'var(--brick)' : 'var(--sage)';
+
+  // Column 3: Income diff, Over/under budget, Remaining (actual)
+  const diffEl = document.getElementById('statIncomeDiff');
+  diffEl.textContent = (incomeDiff >= 0 ? '+' : '') + fmt(incomeDiff);
+  diffEl.style.color = incomeDiff < 0 ? 'var(--brick)' : 'var(--sage)';
+
+  const overUnderEl = document.getElementById('statOverUnder');
+  overUnderEl.textContent = (overUnder >= 0 ? '+' : '') + fmt(overUnder);
+  overUnderEl.style.color = overUnder > 0 ? 'var(--brick)' : 'var(--sage)';
+
+  const remainActual = totalActualIncome - totalBudget;
+  const remainActualEl = document.getElementById('statRemainActual');
+  remainActualEl.textContent = fmt(remainActual);
+  remainActualEl.style.color = remainActual < 0 ? 'var(--brick)' : 'var(--sage)';
 }
 
 let expandedGroups = new Set();
