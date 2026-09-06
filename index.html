@@ -226,23 +226,33 @@ function monthLabel(ym){
 
 const store = {
   hasClaudeStorage: typeof window.storage !== 'undefined' && !!window.storage,
+  async getLocal(key){
+    if(this.hasClaudeStorage){
+      try{ return await window.storage.get(key); }catch(e){ return null; }
+    }
+    const v = localStorage.getItem(key);
+    return v === null ? null : { value: v };
+  },
   async get(key){
+    const localVal = await this.getLocal(key);
     if(firebaseDB && syncCode){
       try{
         const snap = await firebaseDB.ref(`ledgers/${syncCode}/${sanitizeKey(key)}`).once('value');
         lastSyncError = '';
         const val = snap.val();
         if(val !== null) return { value: val };
+        // Nothing in the cloud yet for this key — seed it from this device's local copy
+        // so every device converges on the same data going forward.
+        if(localVal){
+          try{ await firebaseDB.ref(`ledgers/${syncCode}/${sanitizeKey(key)}`).set(localVal.value); }catch(e){ /* ignore seed failure */ }
+        }
+        return localVal;
       }catch(e){
         lastSyncError = e.message || String(e);
         updateSyncStatus();
       }
     }
-    if(this.hasClaudeStorage){
-      try{ return await window.storage.get(key); }catch(e){ return null; }
-    }
-    const v = localStorage.getItem(key);
-    return v === null ? null : { value: v };
+    return localVal;
   },
   async set(key, value){
     if(firebaseDB && syncCode){
