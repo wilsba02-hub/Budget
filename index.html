@@ -183,6 +183,16 @@
   </div>
 
   <div class="card">
+    <div class="row" data-toggle-section="debtPayoff" style="cursor:pointer;">
+      <h2 style="margin:0;">Debt payoff</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-debtPayoff">
+    <div id="debtPayoffList"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="row" data-toggle-section="catSummarySection" style="cursor:pointer;">
       <h2 style="margin:0;">This month by category</h2>
       <span class="section-arrow">▾</span>
@@ -416,6 +426,80 @@ async function refreshUnpaidCarryovers(){
   `).join('');
 }
 
+function estimatePayoff(balance, apr, payment){
+  if(!balance || balance <= 0) return null;
+  if(!payment || payment <= 0) return { months: null, totalInterest: null, warning: 'No payment set' };
+  const r = (apr || 0) / 100 / 12;
+  if(r === 0){
+    const months = Math.ceil(balance / payment);
+    return { months, totalInterest: Math.max(0, months*payment - balance) };
+  }
+  if(payment <= r * balance){
+    return { months: null, totalInterest: null, warning: 'Payment too low to cover interest' };
+  }
+  const months = Math.ceil(-Math.log(1 - (r*balance)/payment) / Math.log(1+r));
+  const totalInterest = Math.max(0, months*payment - balance);
+  return { months, totalInterest };
+}
+
+function formatMonths(months){
+  if(months == null) return '—';
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if(years === 0) return `${rem} mo`;
+  if(rem === 0) return `${years} yr`;
+  return `${years} yr ${rem} mo`;
+}
+
+function renderDebtPayoff(){
+  const box = document.getElementById('debtPayoffList');
+  if(!box) return;
+  const debtNames = Object.keys(categories).filter(n => categories[n].generalCategory === 'Debt' && categories[n].balance);
+  if(debtNames.length === 0){
+    box.innerHTML = '<div class="empty">Add a balance to a Debt bill in Bills &amp; budget to see payoff estimates.</div>';
+    return;
+  }
+
+  let totalBalance = 0;
+  let totalPayment = 0;
+  let totalInterest = 0;
+  let hasWarning = false;
+
+  const rows = debtNames.map(name => {
+    const cat = categories[name];
+    const est = estimatePayoff(cat.balance, cat.apr, cat.amount);
+    totalBalance += cat.balance || 0;
+    totalPayment += cat.amount || 0;
+    if(est && est.warning) hasWarning = true;
+    if(est && est.totalInterest != null) totalInterest += est.totalInterest;
+    const payoffText = !est ? '—' : est.warning ? est.warning : `${formatMonths(est.months)} · ${fmt(est.totalInterest)} interest`;
+    return `
+      <div class="cat-summary">
+        <div class="row">
+          <span class="cat-name">${escapeHtml(name)}</span>
+          <span class="due-badge">${fmt(cat.balance || 0)} at ${cat.apr || 0}% APR</span>
+        </div>
+        <span class="due-badge ${est && est.warning ? 'overdue' : ''}">${payoffText}</span>
+      </div>
+    `;
+  }).join('');
+
+  const summary = `
+    <div class="cat-summary">
+      <div class="row">
+        <span class="cat-name">Total debt</span>
+        <span class="due-badge">${fmt(totalBalance)}</span>
+      </div>
+      <div class="row" style="margin-top:4px;">
+        <span class="due-badge">Total monthly payments: ${fmt(totalPayment)}</span>
+        <span class="due-badge">${hasWarning ? 'Some payments may not cover interest' : 'Est. total interest: ' + fmt(totalInterest)}</span>
+      </div>
+    </div>
+  `;
+
+  box.innerHTML = summary + rows;
+}
+
 async function loadCategories(){
   try{
     const res = await store.get('budget-categories');
@@ -424,11 +508,21 @@ async function loadCategories(){
   let migrated = false;
   for(const name of Object.keys(categories)){
     if(typeof categories[name] === 'number'){
-      categories[name] = { amount: categories[name], dueDay: null, generalCategory: 'Other' };
+      categories[name] = { amount: categories[name], dueDay: null, generalCategory: 'Other', balance: null, apr: null };
       migrated = true;
-    } else if(categories[name].generalCategory === undefined){
-      categories[name].generalCategory = 'Other';
-      migrated = true;
+    } else {
+      if(categories[name].generalCategory === undefined){
+        categories[name].generalCategory = 'Other';
+        migrated = true;
+      }
+      if(categories[name].balance === undefined){
+        categories[name].balance = null;
+        migrated = true;
+      }
+      if(categories[name].apr === undefined){
+        categories[name].apr = null;
+        migrated = true;
+      }
     }
   }
   if(Object.keys(categories).length === 0){
@@ -592,6 +686,12 @@ function renderCatList(){
           <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}" placeholder="$">
           <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due day" min="1" max="31" value="${categories[name].dueDay || ''}">
         </div>
+        ${categories[name].generalCategory === 'Debt' ? `
+        <div class="cat-row-fields" style="margin-top:6px;grid-template-columns:1fr 1fr;">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-balance-input" placeholder="Balance owed" value="${categories[name].balance || ''}">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-apr-input" placeholder="APR %" step="0.01" value="${categories[name].apr || ''}">
+        </div>
+        ` : ''}
       </div>
     `).join('');
 
@@ -619,6 +719,7 @@ function renderCatList(){
       categories[cat].generalCategory = e.target.value;
       await saveCategories();
       renderCatList();
+      renderDebtPayoff();
     });
   });
   list.querySelectorAll('.cat-amt-input').forEach(inp => {
@@ -629,6 +730,7 @@ function renderCatList(){
       renderCatSummary();
       await saveCategories();
       refreshUnpaidCarryovers();
+      renderDebtPayoff();
     });
   });
   list.querySelectorAll('.cat-due-input').forEach(inp => {
@@ -641,6 +743,22 @@ function renderCatList(){
       refreshUnpaidCarryovers();
     });
   });
+  list.querySelectorAll('.cat-balance-input').forEach(inp => {
+    inp.addEventListener('input', async (e) => {
+      const cat = e.target.getAttribute('data-cat');
+      categories[cat].balance = parseFloat(e.target.value) || null;
+      await saveCategories();
+      renderDebtPayoff();
+    });
+  });
+  list.querySelectorAll('.cat-apr-input').forEach(inp => {
+    inp.addEventListener('input', async (e) => {
+      const cat = e.target.getAttribute('data-cat');
+      categories[cat].apr = parseFloat(e.target.value) || null;
+      await saveCategories();
+      renderDebtPayoff();
+    });
+  });
   list.querySelectorAll('.del-cat-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const cat = e.target.getAttribute('data-cat');
@@ -648,6 +766,7 @@ function renderCatList(){
       await saveCategories();
       renderAll();
       refreshUnpaidCarryovers();
+      renderDebtPayoff();
     });
   });
 }
@@ -977,6 +1096,7 @@ function renderAll(){
   renderStats();
   renderCatSummary();
   renderPaycheckSummary();
+  renderDebtPayoff();
   renderExpenseList();
 }
 
@@ -1040,13 +1160,14 @@ document.getElementById('addCatBtn').addEventListener('click', async () => {
   const amt = parseFloat(amtInput.value) || 0;
   const dueVal = parseInt(dueInput.value, 10);
   if(!name) return;
-  categories[name] = { amount: amt, dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null, generalCategory: generalInput.value };
+  categories[name] = { amount: amt, dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null, generalCategory: generalInput.value, balance: null, apr: null };
   await saveCategories();
   nameInput.value = '';
   amtInput.value = '';
   dueInput.value = '';
   renderAll();
   refreshUnpaidCarryovers();
+  renderDebtPayoff();
 });
 
 document.getElementById('addExpBtn').addEventListener('click', async () => {
