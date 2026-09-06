@@ -35,7 +35,7 @@
   .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
   .stat{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;padding:12px 10px;text-align:center;}
   .stat .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:4px;}
-  .stat .num{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:500;}
+  .stat .num{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:700;}
   select,input{font-family:'Inter',sans-serif;font-size:14px;border:1px solid var(--paper-line);border-radius:4px;padding:8px 10px;background:var(--card);color:var(--ink);}
   select:focus,input:focus{outline:none;border-color:var(--brass);}
   .month-select{font-family:'IBM Plex Mono',monospace;font-weight:500;}
@@ -84,6 +84,8 @@
   .pcheck-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .pcheck-fields input{width:100%;text-align:right;font-family:'IBM Plex Mono',monospace;padding:6px 8px;font-size:13px;}
   .pcheck-label{font-size:9.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;}
+  .section-arrow{display:inline-block;width:14px;}
+  .pc-bill-label{font-family:'Inter',sans-serif;font-size:12px;color:var(--ink-soft);display:block;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -98,30 +100,63 @@
   </div>
 
   <div class="card">
-    <div class="row">
+    <div class="row" data-toggle-section="sync" style="cursor:pointer;">
       <h2 style="margin:0;">Sync across devices</h2>
-      <span class="due-badge" id="syncStatus">Not connected</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="due-badge" id="syncStatus">Not connected</span>
+        <span class="section-arrow">▾</span>
+      </div>
     </div>
+    <div id="section-sync">
     <div class="add-cat" style="grid-template-columns:1fr auto;margin-top:10px;">
       <input type="text" id="syncCodeInput" placeholder="Pick a sync code">
       <button class="btn" id="syncBtn">Connect</button>
     </div>
+    </div>
   </div>
 
   <div class="card">
-    <div class="row">
-      <h2 style="margin:0;">Paycheck schedule</h2>
+    <div class="row" data-toggle-section="paychecks" style="cursor:pointer;">
+      <h2 style="margin:0;">Paychecks</h2>
+      <span class="section-arrow">▾</span>
     </div>
+    <div id="section-paychecks">
     <div class="row" style="margin-top:10px;gap:10px;">
       <span style="font-size:13px;color:var(--ink-soft);">A date you get paid</span>
       <input type="date" id="paycheckAnchorInput" style="width:150px;">
     </div>
     <p class="sub" style="margin:8px 0 0;font-size:11.5px;">Repeats every 2 weeks from that date — used to match each bill to a paycheck.</p>
+    <div id="paycheckIncomeList" style="margin-top:14px;"></div>
+    </div>
   </div>
 
   <div class="card">
-    <h2>Paychecks this month</h2>
-    <div id="paycheckIncomeList"></div>
+    <div class="row" data-toggle-section="unpaidCarryover" style="cursor:pointer;">
+      <h2 style="margin:0;">Unpaid bills</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-unpaidCarryover">
+    <div id="unpaidCarryoverList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" data-toggle-section="logExpense" style="cursor:pointer;">
+      <h2 style="margin:0;">Log an expense</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-logExpense">
+    <div class="form-grid">
+      <select id="expCat"></select>
+      <input type="number" id="expAmt" placeholder="Amount">
+    </div>
+    <div class="form-grid">
+      <input type="text" id="expNote" placeholder="Note (optional)">
+      <input type="date" id="expPaidDate">
+    </div>
+    <div id="expError" style="font-size:12px;color:var(--brick);margin-bottom:8px;display:none;"></div>
+    <button class="btn" id="addExpBtn" style="width:100%;">Add expense</button>
+    </div>
   </div>
 
   <div class="stat-grid">
@@ -141,7 +176,31 @@
   </div>
 
   <div class="card">
-    <h2>Bills &amp; budget</h2>
+    <div class="row" data-toggle-section="paycheckSummarySection" style="cursor:pointer;">
+      <h2 style="margin:0;">By Paycheck</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-paycheckSummarySection">
+    <div id="paycheckSummary"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" data-toggle-section="catSummarySection" style="cursor:pointer;">
+      <h2 style="margin:0;">This month by category</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-catSummarySection">
+    <div id="catSummary"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" data-toggle-section="bills" style="cursor:pointer;">
+      <h2 style="margin:0;">Bills &amp; budget</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-bills">
     <div id="catList"></div>
     <div class="add-cat" style="grid-template-columns:1fr 1fr;">
       <input type="text" id="newCatName" placeholder="Bill name">
@@ -150,6 +209,7 @@
         <option value="Utilities">Utilities</option>
         <option value="Transportation">Transportation</option>
         <option value="Food">Food</option>
+        <option value="Health">Health</option>
         <option value="Subscriptions">Subscriptions</option>
         <option value="Entertainment">Entertainment</option>
         <option value="Insurance">Insurance</option>
@@ -164,35 +224,16 @@
       <input type="number" id="newCatDue" placeholder="Due day" min="1" max="31">
       <button class="btn" id="addCatBtn">Add</button>
     </div>
-  </div>
-
-  <div class="card">
-    <h2>This month by category</h2>
-    <div id="catSummary"></div>
-  </div>
-
-  <div class="card">
-    <h2>By paycheck</h2>
-    <div id="paycheckSummary"></div>
-  </div>
-
-  <div class="card">
-    <h2>Log an expense</h2>
-    <div class="form-grid">
-      <select id="expCat"></select>
-      <input type="number" id="expAmt" placeholder="Amount">
+    <div class="row" data-toggle-section="expList" style="cursor:pointer;margin-top:20px;">
+      <h2 style="margin:0;">Expenses this month</h2>
+      <span class="section-arrow">▾</span>
     </div>
-    <div class="form-grid">
-      <input type="text" id="expNote" placeholder="Note (optional)">
-      <input type="date" id="expPaidDate">
-    </div>
-    <div id="expError" style="font-size:12px;color:var(--brick);margin-bottom:8px;display:none;"></div>
-    <button class="btn" id="addExpBtn" style="width:100%;">Add expense</button>
-  </div>
-
-  <div class="card">
-    <h2>Expenses this month</h2>
+    <div id="section-expList">
     <div class="expense-list" id="expList"></div>
+    </div>
+    </div>
+  </div>
+
   </div>
 </div>
 
@@ -308,6 +349,75 @@ const store = {
     return { value };
   }
 };
+
+async function loadExpensesForMonth(ym){
+  try{
+    const res = await store.get('expenses:' + ym);
+    return res ? JSON.parse(res.value) : [];
+  }catch(e){ return []; }
+}
+
+async function computeUnpaidCarryovers(){
+  const realCurrentMonth = new Date().toISOString().slice(0,7);
+  const [ry, rm] = realCurrentMonth.split('-').map(Number);
+  const results = [];
+  const names = Object.keys(categories).filter(n => categories[n].dueDay);
+  if(names.length === 0) return results;
+
+  const monthKeys = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(ry, rm-1-i, 1);
+    monthKeys.push(d.toISOString().slice(0,7));
+  }
+  const expensesByMonth = {};
+  for(const mk of monthKeys){
+    expensesByMonth[mk] = await loadExpensesForMonth(mk);
+  }
+
+  names.forEach(name => {
+    const budget = categories[name].amount;
+    for(let i=1; i<=6; i++){
+      const d = new Date(ry, rm-1-i, 1);
+      const dueMonthKey = d.toISOString().slice(0,7);
+      if(!monthKeys.includes(dueMonthKey)) continue;
+      let cumSpent = 0;
+      monthKeys.forEach(mk => {
+        if(mk >= dueMonthKey){
+          cumSpent += (expensesByMonth[mk]||[]).filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
+        }
+      });
+      if(cumSpent < budget){
+        results.push({ name, dueMonthKey, owed: budget - cumSpent });
+        break;
+      }
+    }
+  });
+  return results;
+}
+
+function monthLabelShort(ym){
+  const [y,m] = ym.split('-');
+  return monthNames[parseInt(m,10)-1].slice(0,3) + ' ' + y;
+}
+
+async function refreshUnpaidCarryovers(){
+  const box = document.getElementById('unpaidCarryoverList');
+  if(!box) return;
+  const list = await computeUnpaidCarryovers();
+  if(list.length === 0){
+    box.innerHTML = '<div class="empty">Nothing unpaid — you\'re caught up.</div>';
+    return;
+  }
+  box.innerHTML = list.map(item => `
+    <div class="cat-summary">
+      <div class="row">
+        <span class="cat-name">${escapeHtml(item.name)}</span>
+        <span class="due-badge overdue">${fmt(item.owed)} owed</span>
+      </div>
+      <span class="due-badge overdue">Since ${monthLabelShort(item.dueMonthKey)}</span>
+    </div>
+  `).join('');
+}
 
 async function loadCategories(){
   try{
@@ -461,27 +571,57 @@ function renderCatList(){
   const list = document.getElementById('catList');
   const names = Object.keys(categories);
   if(names.length===0){ list.innerHTML = '<div class="empty">No bills yet — add one below.</div>'; return; }
-  const genOptions = ['Housing','Utilities','Transportation','Food','Subscriptions','Entertainment','Insurance','Debt','Personal','Savings','Other'];
-  list.innerHTML = names.map(name => `
-    <div class="cat-row">
-      <div class="cat-row-top">
-        <div class="cat-name">${escapeHtml(name)}</div>
-        <button data-cat="${escapeHtml(name)}" class="del-cat-btn" aria-label="Remove ${escapeHtml(name)}">×</button>
+  const genOptions = ['Housing','Utilities','Transportation','Food','Health','Subscriptions','Entertainment','Insurance','Debt','Personal','Savings','Other'];
+
+  const groups = groupByGeneral(names);
+  const groupKeys = Object.keys(groups).sort((a,b) => a.localeCompare(b));
+
+  list.innerHTML = groupKeys.map(gc => {
+    const billNames = groups[gc];
+    const totalBudget = billNames.reduce((a,n)=>a+categories[n].amount,0);
+    const toggleKey = 'bl:' + gc;
+    const expanded = expandedGroups.has(toggleKey);
+
+    const rows = billNames.map(name => `
+      <div class="cat-row">
+        <div class="cat-row-top">
+          <div class="cat-name">${escapeHtml(name)}</div>
+          <button data-cat="${escapeHtml(name)}" class="del-cat-btn" aria-label="Remove ${escapeHtml(name)}">×</button>
+        </div>
+        <div class="cat-row-fields">
+          <select data-cat="${escapeHtml(name)}" class="cat-general-input">
+            ${genOptions.map(g => `<option value="${g}" ${categories[name].generalCategory===g?'selected':''}>${g}</option>`).join('')}
+          </select>
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}" placeholder="$">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due day" min="1" max="31" value="${categories[name].dueDay || ''}">
+        </div>
       </div>
-      <div class="cat-row-fields">
-        <select data-cat="${escapeHtml(name)}" class="cat-general-input">
-          ${genOptions.map(g => `<option value="${g}" ${categories[name].generalCategory===g?'selected':''}>${g}</option>`).join('')}
-        </select>
-        <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}" placeholder="$">
-        <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due day" min="1" max="31" value="${categories[name].dueDay || ''}">
+    `).join('');
+
+    return `
+      <div class="cat-summary">
+        <div class="row" style="cursor:pointer;" data-toggle-key="${toggleKey}">
+          <span class="cat-name">${expanded?'▾':'▸'} ${escapeHtml(gc)} <span class="due-badge">(${billNames.length})</span></span>
+          <span class="pill under">${fmt(totalBudget)}</span>
+        </div>
+        ${expanded ? `<div style="margin-top:6px;">${rows}</div>` : ''}
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-toggle-key]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.getAttribute('data-toggle-key');
+      if(expandedGroups.has(key)) expandedGroups.delete(key); else expandedGroups.add(key);
+      renderCatList();
+    });
+  });
   list.querySelectorAll('.cat-general-input').forEach(sel => {
     sel.addEventListener('change', async (e) => {
       const cat = e.target.getAttribute('data-cat');
       categories[cat].generalCategory = e.target.value;
       await saveCategories();
+      renderCatList();
     });
   });
   list.querySelectorAll('.cat-amt-input').forEach(inp => {
@@ -491,6 +631,7 @@ function renderCatList(){
       renderStats();
       renderCatSummary();
       await saveCategories();
+      refreshUnpaidCarryovers();
     });
   });
   list.querySelectorAll('.cat-due-input').forEach(inp => {
@@ -500,6 +641,7 @@ function renderCatList(){
       categories[cat].dueDay = (val >= 1 && val <= 31) ? val : null;
       renderCatSummary();
       await saveCategories();
+      refreshUnpaidCarryovers();
     });
   });
   list.querySelectorAll('.del-cat-btn').forEach(btn => {
@@ -508,6 +650,7 @@ function renderCatList(){
       delete categories[cat];
       await saveCategories();
       renderAll();
+      refreshUnpaidCarryovers();
     });
   });
 }
@@ -740,18 +883,21 @@ function renderPaycheckSummary(){
       const expanded = expandedGroups.has(toggleKey);
       const billList = expanded ? gcBills.map(n => {
         const bSpent = expenses.filter(e=>e.category===n).reduce((a,e)=>a+e.amount,0);
-        return `<div class="due-badge" style="padding-left:12px;">${escapeHtml(n)}: ${fmt(bSpent)} / ${fmt(categories[n].amount)}</div>`;
+        return `<div class="pc-bill-label" style="padding-left:12px;">${escapeHtml(n)}: ${fmt(bSpent)} / ${fmt(categories[n].amount)}</div>`;
       }).join('') : '';
-      return `<div class="due-badge" data-toggle-key="${toggleKey}" style="cursor:pointer;">${expanded?'▾':'▸'} ${escapeHtml(gc)}: ${fmt(gcSpent)} / ${fmt(gcBudget)}</div>${billList}`;
+      return `<div class="pc-bill-label" data-toggle-key="${toggleKey}" style="cursor:pointer;">${expanded?'▾':'▸'} ${escapeHtml(gc)}: ${fmt(gcSpent)} / ${fmt(gcBudget)}</div>${billList}`;
     }).join('');
 
+    const pct = g.billTotal > 0 ? Math.min(100, (g.spent/g.billTotal)*100) : (g.spent>0?100:0);
+    const over = g.spent > g.billTotal;
     return `
       <div class="cat-summary">
         <div class="row">
           <span class="cat-name">Paycheck ${g.label}</span>
-          <span class="pill ${g.spent > g.billTotal ? 'over' : 'under'}">${fmt(g.spent)} / ${fmt(g.billTotal)} bills</span>
+          <span class="due-badge">${fmt(g.spent)} / ${fmt(g.billTotal)} bills</span>
         </div>
-        ${g.cats.length ? subgroupHtml : '<span class="due-badge">No bills assigned</span>'}
+        <div class="bar-track"><div class="bar-fill ${over?'over':''}" style="width:${pct}%;"></div></div>
+        ${g.cats.length ? subgroupHtml : '<span class="pc-bill-label">No bills assigned</span>'}
         <div class="row" style="margin-top:6px;">
           <span class="due-badge">Income: ${fmt(g.income.expected)}</span>
           <span class="due-badge ${coverage < 0 ? 'overdue' : ''}">${coverage < 0 ? 'Short ' + fmt(Math.abs(coverage)) : 'Covers with ' + fmt(coverage) + ' left'}</span>
@@ -807,6 +953,7 @@ function renderExpenseList(){
       expenses = expenses.filter(x => x.id !== id);
       await saveExpenses();
       renderAll();
+      refreshUnpaidCarryovers();
     });
   });
 }
@@ -901,6 +1048,7 @@ document.getElementById('addCatBtn').addEventListener('click', async () => {
   amtInput.value = '';
   dueInput.value = '';
   renderAll();
+  refreshUnpaidCarryovers();
 });
 
 document.getElementById('addExpBtn').addEventListener('click', async () => {
@@ -927,7 +1075,36 @@ document.getElementById('addExpBtn').addEventListener('click', async () => {
   noteInput.value = '';
   paidInput.value = '';
   renderAll();
+  refreshUnpaidCarryovers();
 });
+
+const collapsedSections = new Set(JSON.parse(localStorage.getItem('collapsed-sections') || '[]'));
+
+function saveCollapsedSections(){
+  try{ localStorage.setItem('collapsed-sections', JSON.stringify(Array.from(collapsedSections))); }catch(e){}
+}
+
+function applySectionCollapse(id){
+  const content = document.getElementById('section-' + id);
+  const header = document.querySelector(`[data-toggle-section="${id}"]`);
+  if(!content || !header) return;
+  const collapsed = collapsedSections.has(id);
+  content.style.display = collapsed ? 'none' : '';
+  const arrow = header.querySelector('.section-arrow');
+  if(arrow) arrow.textContent = collapsed ? '▸' : '▾';
+}
+
+function initSectionToggles(){
+  document.querySelectorAll('[data-toggle-section]').forEach(header => {
+    const id = header.getAttribute('data-toggle-section');
+    applySectionCollapse(id);
+    header.addEventListener('click', () => {
+      if(collapsedSections.has(id)) collapsedSections.delete(id); else collapsedSections.add(id);
+      saveCollapsedSections();
+      applySectionCollapse(id);
+    });
+  });
+}
 
 (async function init(){
   initFirebase();
@@ -938,6 +1115,8 @@ document.getElementById('addExpBtn').addEventListener('click', async () => {
   await loadPaycheckIncomes();
   await migrateOldMonthlyIncome();
   renderAll();
+  initSectionToggles();
+  refreshUnpaidCarryovers();
 })();
 </script>
 </body>
