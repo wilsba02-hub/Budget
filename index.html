@@ -178,6 +178,7 @@ const FIREBASE_CONFIG = {
 
 let firebaseDB = null;
 let syncCode = localStorage.getItem('ledger-sync-code') || '';
+let lastSyncError = '';
 
 function sanitizeKey(k){
   return k.replace(/[.#$\/\[\]]/g, '_');
@@ -185,12 +186,18 @@ function sanitizeKey(k){
 
 function initFirebase(){
   if(FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return false;
-  if(typeof firebase === 'undefined') return false;
+  if(typeof firebase === 'undefined'){
+    lastSyncError = 'Firebase library did not load';
+    return false;
+  }
   try{
     if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     firebaseDB = firebase.database();
     return true;
-  }catch(e){ return false; }
+  }catch(e){
+    lastSyncError = 'Init error: ' + e.message;
+    return false;
+  }
 }
 
 function updateSyncStatus(){
@@ -198,6 +205,9 @@ function updateSyncStatus(){
   const input = document.getElementById('syncCodeInput');
   if(FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
     el.textContent = 'Sync not set up yet';
+  } else if(lastSyncError){
+    el.textContent = 'Error: ' + lastSyncError;
+    el.classList.add('overdue');
   } else if(syncCode && firebaseDB){
     el.textContent = 'Synced: ' + syncCode;
     input.value = syncCode;
@@ -220,9 +230,13 @@ const store = {
     if(firebaseDB && syncCode){
       try{
         const snap = await firebaseDB.ref(`ledgers/${syncCode}/${sanitizeKey(key)}`).once('value');
+        lastSyncError = '';
         const val = snap.val();
         if(val !== null) return { value: val };
-      }catch(e){ /* fall through to local */ }
+      }catch(e){
+        lastSyncError = e.message || String(e);
+        updateSyncStatus();
+      }
     }
     if(this.hasClaudeStorage){
       try{ return await window.storage.get(key); }catch(e){ return null; }
@@ -234,8 +248,12 @@ const store = {
     if(firebaseDB && syncCode){
       try{
         await firebaseDB.ref(`ledgers/${syncCode}/${sanitizeKey(key)}`).set(value);
+        lastSyncError = '';
         return { value };
-      }catch(e){ /* fall through to local */ }
+      }catch(e){
+        lastSyncError = e.message || String(e);
+        updateSyncStatus();
+      }
     }
     if(this.hasClaudeStorage){
       try{ return await window.storage.set(key, value); }catch(e){ return null; }
