@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
   :root{
     --paper:#FFFFFF;
@@ -87,6 +89,17 @@
 
   <div class="card">
     <div class="row">
+      <h2 style="margin:0;">Sync across devices</h2>
+      <span class="due-badge" id="syncStatus">Not connected</span>
+    </div>
+    <div class="add-cat" style="grid-template-columns:1fr auto;margin-top:10px;">
+      <input type="text" id="syncCodeInput" placeholder="Pick a sync code">
+      <button class="btn" id="syncBtn">Connect</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
       <h2 style="margin:0;">Expected income</h2>
       <input type="number" id="incomeInput" placeholder="$0" style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;">
     </div>
@@ -155,6 +168,44 @@ let categories = {};
 let expenses = [];
 let income = { expected: 0, actual: 0 };
 
+// Fill these in with your own Firebase project's config (see setup instructions).
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA9XXfIgAtMyyvWul7f6r97th_6KZAypfk",
+  authDomain: "budget-ec26f.firebaseapp.com",
+  databaseURL: "https://budget-ec26f-default-rtdb.firebaseio.com",
+  projectId: "budget-ec26f"
+};
+
+let firebaseDB = null;
+let syncCode = localStorage.getItem('ledger-sync-code') || '';
+
+function sanitizeKey(k){
+  return k.replace(/[.#$\/\[\]]/g, '_');
+}
+
+function initFirebase(){
+  if(FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return false;
+  if(typeof firebase === 'undefined') return false;
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    firebaseDB = firebase.database();
+    return true;
+  }catch(e){ return false; }
+}
+
+function updateSyncStatus(){
+  const el = document.getElementById('syncStatus');
+  const input = document.getElementById('syncCodeInput');
+  if(FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
+    el.textContent = 'Sync not set up yet';
+  } else if(syncCode && firebaseDB){
+    el.textContent = 'Synced: ' + syncCode;
+    input.value = syncCode;
+  } else {
+    el.textContent = 'Not connected';
+  }
+}
+
 function fmt(n){
   return '$' + Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2});
 }
@@ -166,6 +217,13 @@ function monthLabel(ym){
 const store = {
   hasClaudeStorage: typeof window.storage !== 'undefined' && !!window.storage,
   async get(key){
+    if(firebaseDB && syncCode){
+      try{
+        const snap = await firebaseDB.ref(`ledgers/${syncCode}/${sanitizeKey(key)}`).once('value');
+        const val = snap.val();
+        if(val !== null) return { value: val };
+      }catch(e){ /* fall through to local */ }
+    }
     if(this.hasClaudeStorage){
       try{ return await window.storage.get(key); }catch(e){ return null; }
     }
@@ -173,6 +231,12 @@ const store = {
     return v === null ? null : { value: v };
   },
   async set(key, value){
+    if(firebaseDB && syncCode){
+      try{
+        await firebaseDB.ref(`ledgers/${syncCode}/${sanitizeKey(key)}`).set(value);
+        return { value };
+      }catch(e){ /* fall through to local */ }
+    }
     if(this.hasClaudeStorage){
       try{ return await window.storage.set(key, value); }catch(e){ return null; }
     }
@@ -333,7 +397,14 @@ function renderStats(){
 
 function renderCatSummary(){
   const box = document.getElementById('catSummary');
-  const names = Object.keys(categories);
+  const names = Object.keys(categories).sort((a, b) => {
+    const dueA = categories[a].dueDay;
+    const dueB = categories[b].dueDay;
+    if(dueA == null && dueB == null) return a.localeCompare(b);
+    if(dueA == null) return 1;
+    if(dueB == null) return -1;
+    return dueA - dueB;
+  });
   if(names.length===0){ box.innerHTML = '<div class="empty">Nothing to show yet.</div>'; return; }
   const realCurrentMonth = new Date().toISOString().slice(0,7);
   const isViewingRealCurrentMonth = currentMonth === realCurrentMonth;
@@ -444,6 +515,22 @@ actualIncomeInputEl.addEventListener('change', syncActualIncome);
 actualIncomeInputEl.addEventListener('keyup', syncActualIncome);
 actualIncomeInputEl.addEventListener('blur', syncActualIncome);
 
+document.getElementById('syncBtn').addEventListener('click', async () => {
+  const val = document.getElementById('syncCodeInput').value.trim();
+  if(!val) return;
+  if(FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
+    alert('Sync isn\'t set up yet — add your Firebase config to the code first.');
+    return;
+  }
+  syncCode = val;
+  localStorage.setItem('ledger-sync-code', syncCode);
+  updateSyncStatus();
+  await loadCategories();
+  await loadIncome();
+  await loadExpenses();
+  renderAll();
+});
+
 document.getElementById('monthSelect').addEventListener('change', (e) => switchMonth(e.target.value));
 document.getElementById('prevBtn').addEventListener('click', () => {
   const [y,m] = currentMonth.split('-').map(Number);
@@ -499,6 +586,8 @@ document.getElementById('addExpBtn').addEventListener('click', async () => {
 });
 
 (async function init(){
+  initFirebase();
+  updateSyncStatus();
   await loadCategories();
   await loadIncome();
   await loadExpenses();
