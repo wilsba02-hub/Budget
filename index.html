@@ -386,10 +386,12 @@ async function computeUnpaidCarryovers(){
 
   names.forEach(name => {
     const budget = categories[name].amount;
+    const createdMonth = categories[name].createdMonth;
     for(let i=1; i<=6; i++){
       const d = new Date(ry, rm-1-i, 1);
       const dueMonthKey = d.toISOString().slice(0,7);
       if(!monthKeys.includes(dueMonthKey)) continue;
+      if(createdMonth && dueMonthKey < createdMonth) continue;
       let cumSpent = 0;
       monthKeys.forEach(mk => {
         if(mk >= dueMonthKey){
@@ -530,15 +532,20 @@ async function loadCategories(){
         categories[name].dueDay2 = null;
         migrated = true;
       }
+      if(categories[name].createdMonth === undefined){
+        categories[name].createdMonth = new Date().toISOString().slice(0,7);
+        migrated = true;
+      }
     }
   }
   if(Object.keys(categories).length === 0){
+    const nowMonth = new Date().toISOString().slice(0,7);
     categories = {
-      Groceries:{amount:400, dueDay:null, generalCategory:'Food'},
-      Rent:{amount:1200, dueDay:1, generalCategory:'Housing'},
-      Transport:{amount:150, dueDay:null, generalCategory:'Transportation'},
-      Dining:{amount:150, dueDay:null, generalCategory:'Food'},
-      Fun:{amount:100, dueDay:null, generalCategory:'Personal'}
+      Groceries:{amount:400, dueDay:null, dueDay2:null, generalCategory:'Food', balance:null, apr:null, createdMonth:nowMonth},
+      Rent:{amount:1200, dueDay:1, dueDay2:null, generalCategory:'Housing', balance:null, apr:null, createdMonth:nowMonth},
+      Transport:{amount:150, dueDay:null, dueDay2:null, generalCategory:'Transportation', balance:null, apr:null, createdMonth:nowMonth},
+      Dining:{amount:150, dueDay:null, dueDay2:null, generalCategory:'Food', balance:null, apr:null, createdMonth:nowMonth},
+      Fun:{amount:100, dueDay:null, dueDay2:null, generalCategory:'Personal', balance:null, apr:null, createdMonth:nowMonth}
     };
     migrated = true;
   }
@@ -1214,7 +1221,8 @@ document.getElementById('addCatBtn').addEventListener('click', async () => {
     dueDay2: (due2Val >= 1 && due2Val <= 31) ? due2Val : null,
     generalCategory: generalInput.value,
     balance: null,
-    apr: null
+    apr: null,
+    createdMonth: new Date().toISOString().slice(0,7)
   };
   await saveCategories();
   nameInput.value = '';
