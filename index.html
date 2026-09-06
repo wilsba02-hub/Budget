@@ -29,7 +29,7 @@
   body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;}
   .wrap{max-width:640px;margin:0 auto;padding:28px 20px 60px;}
   h1{font-family:'Fraunces',serif;font-weight:600;font-size:26px;margin:0 0 2px;letter-spacing:-0.01em;}
-  .sub{font-size:13px;color:var(--ink-soft);margin:0 0 20px;font-family:'IBM Plex Mono',monospace;}
+  .sub{font-size:13px;color:var(--ink-soft);margin:0 0 20px;font-family:'Inter',sans-serif;}
   .card{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;padding:16px 18px;margin-bottom:16px;}
   .row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
   .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
@@ -63,7 +63,7 @@
   .cat-row button{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:16px;padding:2px;}
   .cat-row button:hover{color:var(--brick);}
   .exp-note{font-size:12px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .exp-paid{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+  .exp-paid{font-size:11.5px;color:var(--ink-soft);font-family:'Inter',sans-serif;margin-top:2px;}
   .exp-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
   .exp-amt{font-family:'IBM Plex Mono',monospace;font-size:14px;}
   .exp-del{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:15px;}
@@ -77,7 +77,7 @@
   .pill{font-size:11px;font-family:'IBM Plex Mono',monospace;padding:2px 7px;border-radius:10px;}
   .pill.under{background:var(--paper);color:#000000;border:1px solid var(--paper-line);}
   .pill.over{background:var(--paper);color:#000000;border:1px solid var(--paper-line);}
-  .due-badge{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .due-badge{font-size:10.5px;color:var(--ink-soft);font-family:'Inter',sans-serif;}
   .due-badge.overdue{color:var(--brick);font-weight:500;}
   .pcheck-row{padding:8px 0;border-bottom:1px dashed var(--paper-line);}
   .pcheck-row:last-child{border-bottom:none;}
@@ -230,6 +230,9 @@
       <input type="number" id="newCatAmt" placeholder="$">
       <input type="number" id="newCatDue" placeholder="Due day" min="1" max="31">
       <button class="btn" id="addCatBtn">Add</button>
+    </div>
+    <div class="add-cat" style="grid-template-columns:1fr;margin-top:8px;">
+      <input type="number" id="newCatDue2" placeholder="2nd due day (if paid twice a month)" min="1" max="31">
     </div>
     <div class="row" data-toggle-section="expList" style="cursor:pointer;margin-top:20px;">
       <h2 style="margin:0;">Expenses this month</h2>
@@ -523,6 +526,10 @@ async function loadCategories(){
         categories[name].apr = null;
         migrated = true;
       }
+      if(categories[name].dueDay2 === undefined){
+        categories[name].dueDay2 = null;
+        migrated = true;
+      }
     }
   }
   if(Object.keys(categories).length === 0){
@@ -686,6 +693,9 @@ function renderCatList(){
           <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}" placeholder="$">
           <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due day" min="1" max="31" value="${categories[name].dueDay || ''}">
         </div>
+        <div class="cat-row-fields" style="margin-top:6px;grid-template-columns:1fr;">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-due2-input" placeholder="2nd due day (if paid twice a month)" min="1" max="31" value="${categories[name].dueDay2 || ''}">
+        </div>
         ${categories[name].generalCategory === 'Debt' ? `
         <div class="cat-row-fields" style="margin-top:6px;grid-template-columns:1fr 1fr;">
           <input type="number" data-cat="${escapeHtml(name)}" class="cat-balance-input" placeholder="Balance owed" value="${categories[name].balance || ''}">
@@ -741,6 +751,16 @@ function renderCatList(){
       renderCatSummary();
       await saveCategories();
       refreshUnpaidCarryovers();
+    });
+  });
+  list.querySelectorAll('.cat-due2-input').forEach(inp => {
+    inp.addEventListener('input', async (e) => {
+      const cat = e.target.getAttribute('data-cat');
+      const val = parseInt(e.target.value, 10);
+      categories[cat].dueDay2 = (val >= 1 && val <= 31) ? val : null;
+      renderCatSummary();
+      renderPaycheckSummary();
+      await saveCategories();
     });
   });
   list.querySelectorAll('.cat-balance-input').forEach(inp => {
@@ -920,6 +940,11 @@ function renderCatSummary(){
         const payLabel = paycheckLabelForDueDay(bDueDay);
         const dueBase = bOverdue ? `Overdue — due day ${bDueDay}` : `Due day ${bDueDay}`;
         dueText = payLabel ? `${dueBase} · pay from ${payLabel}` : dueBase;
+        const bDueDay2 = categories[name].dueDay2;
+        if(bDueDay2){
+          const payLabel2 = paycheckLabelForDueDay(bDueDay2);
+          dueText += payLabel2 ? ` · also due day ${bDueDay2} · pay from ${payLabel2}` : ` · also due day ${bDueDay2}`;
+        }
       }
       return `
         <div style="padding:8px 0 8px 14px;border-left:2px solid var(--paper-line);margin-top:6px;">
@@ -969,21 +994,38 @@ function renderPaycheckSummary(){
 
   names.forEach(name => {
     const cat = categories[name];
-    const spent = expenses.filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
+    const totalSpent = expenses.filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
     if(!cat.dueDay){
       unscheduled.total += cat.amount;
-      unscheduled.spent += spent;
+      unscheduled.spent += totalSpent;
       unscheduled.cats.push(name);
       return;
     }
     const [y, m] = currentMonth.split('-').map(Number);
+
+    if(cat.dueDay2){
+      // Bill paid twice a month — split budget and spent evenly across each due date's paycheck.
+      const halfBudget = cat.amount / 2;
+      const halfSpent = totalSpent / 2;
+      [cat.dueDay, cat.dueDay2].forEach(dd => {
+        const targetDate = new Date(y, m - 1, dd);
+        const pd = paycheckOnOrBefore(targetDate);
+        const key = dateKey(pd);
+        if(!groups[key]) groups[key] = { label: formatShortDate(pd), billTotal: 0, spent: 0, cats: [], income: getPaycheckIncome(key) };
+        groups[key].billTotal += halfBudget;
+        groups[key].spent += halfSpent;
+        groups[key].cats.push({ name, budget: halfBudget, spent: halfSpent });
+      });
+      return;
+    }
+
     const targetDate = new Date(y, m - 1, cat.dueDay);
     const pd = paycheckOnOrBefore(targetDate);
     const key = dateKey(pd);
     if(!groups[key]) groups[key] = { label: formatShortDate(pd), billTotal: 0, spent: 0, cats: [], income: getPaycheckIncome(key) };
     groups[key].billTotal += cat.amount;
-    groups[key].spent += spent;
-    groups[key].cats.push(name);
+    groups[key].spent += totalSpent;
+    groups[key].cats.push({ name, budget: cat.amount, spent: totalSpent });
   });
 
   const sortedKeys = Object.keys(groups).sort();
@@ -991,16 +1033,20 @@ function renderPaycheckSummary(){
     const g = groups[key];
     const coverage = g.income.expected - g.billTotal;
 
-    const subgroups = groupByGeneral(g.cats);
+    const subgroups = {};
+    g.cats.forEach(item => {
+      const gc = categories[item.name].generalCategory || 'Other';
+      if(!subgroups[gc]) subgroups[gc] = [];
+      subgroups[gc].push(item);
+    });
     const subgroupHtml = Object.keys(subgroups).sort().map(gc => {
-      const gcBills = subgroups[gc];
-      const gcBudget = gcBills.reduce((a,n)=>a+categories[n].amount,0);
-      const gcSpent = gcBills.reduce((a,n)=>a+expenses.filter(e=>e.category===n).reduce((x,e)=>x+e.amount,0),0);
+      const items = subgroups[gc];
+      const gcBudget = items.reduce((a,it)=>a+it.budget,0);
+      const gcSpent = items.reduce((a,it)=>a+it.spent,0);
       const toggleKey = 'pc:' + key + ':' + gc;
       const expanded = expandedGroups.has(toggleKey);
-      const billList = expanded ? gcBills.map(n => {
-        const bSpent = expenses.filter(e=>e.category===n).reduce((a,e)=>a+e.amount,0);
-        return `<div class="pc-bill-label" style="padding-left:12px;">${escapeHtml(n)}: ${fmt(bSpent)} / ${fmt(categories[n].amount)}</div>`;
+      const billList = expanded ? items.map(it => {
+        return `<div class="pc-bill-label" style="padding-left:12px;">${escapeHtml(it.name)}: ${fmt(it.spent)} / ${fmt(it.budget)}</div>`;
       }).join('') : '';
       return `<div class="pc-bill-label" data-toggle-key="${toggleKey}" style="cursor:pointer;">${expanded?'▾':'▸'} ${escapeHtml(gc)}: ${fmt(gcSpent)} / ${fmt(gcBudget)}</div>${billList}`;
     }).join('');
@@ -1156,15 +1202,25 @@ document.getElementById('addCatBtn').addEventListener('click', async () => {
   const generalInput = document.getElementById('newCatGeneral');
   const amtInput = document.getElementById('newCatAmt');
   const dueInput = document.getElementById('newCatDue');
+  const due2Input = document.getElementById('newCatDue2');
   const name = nameInput.value.trim();
   const amt = parseFloat(amtInput.value) || 0;
   const dueVal = parseInt(dueInput.value, 10);
+  const due2Val = parseInt(due2Input.value, 10);
   if(!name) return;
-  categories[name] = { amount: amt, dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null, generalCategory: generalInput.value, balance: null, apr: null };
+  categories[name] = {
+    amount: amt,
+    dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null,
+    dueDay2: (due2Val >= 1 && due2Val <= 31) ? due2Val : null,
+    generalCategory: generalInput.value,
+    balance: null,
+    apr: null
+  };
   await saveCategories();
   nameInput.value = '';
   amtInput.value = '';
   dueInput.value = '';
+  due2Input.value = '';
   renderAll();
   refreshUnpaidCarryovers();
   renderDebtPayoff();
