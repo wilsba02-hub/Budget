@@ -14,40 +14,44 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
   :root{
-    --paper:#FFFFFF;
-    --paper-line:#000000;
-    --ink:#0F1F3D;
-    --ink-soft:#4A5568;
-    --sage:#0F1F3D;
-    --sage-bg:#E8EBF2;
+    --paper:#F4F6F7;
+    --card:#FBFCFC;
+    --paper-line:#3D4A52;
+    --ink:#000000;
+    --ink-soft:#000000;
+    --sage:#00C878;
+    --sage-bg:#BFF5E0;
     --brick:#B5482F;
     --brick-bg:#F7E6E1;
-    --brass:#0F1F3D;
+    --brass:#0E7C7B;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;}
   .wrap{max-width:640px;margin:0 auto;padding:28px 20px 60px;}
   h1{font-family:'Fraunces',serif;font-weight:600;font-size:26px;margin:0 0 2px;letter-spacing:-0.01em;}
   .sub{font-size:13px;color:var(--ink-soft);margin:0 0 20px;font-family:'IBM Plex Mono',monospace;}
-  .card{background:#fff;border:1px solid var(--paper-line);border-radius:6px;padding:16px 18px;margin-bottom:16px;}
+  .card{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;padding:16px 18px;margin-bottom:16px;}
   .row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
   .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
-  .stat{background:#fff;border:1px solid var(--paper-line);border-radius:6px;padding:12px 10px;text-align:center;}
+  .stat{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;padding:12px 10px;text-align:center;}
   .stat .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:4px;}
   .stat .num{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:500;}
-  select,input{font-family:'Inter',sans-serif;font-size:14px;border:1px solid var(--paper-line);border-radius:4px;padding:8px 10px;background:#fff;color:var(--ink);}
+  select,input{font-family:'Inter',sans-serif;font-size:14px;border:1px solid var(--paper-line);border-radius:4px;padding:8px 10px;background:var(--card);color:var(--ink);}
   select:focus,input:focus{outline:none;border-color:var(--brass);}
   .month-select{font-family:'IBM Plex Mono',monospace;font-weight:500;}
   h2{font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin:0 0 12px;}
-  .cat-row{display:grid;grid-template-columns:1fr 80px 60px 34px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--paper-line);}
+  .cat-row{padding:8px 0;border-bottom:1px dashed var(--paper-line);}
   .cat-row:last-child{border-bottom:none;}
+  .cat-row-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+  .cat-row-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+  .cat-row select{font-size:12px;padding:6px 4px;}
   .cat-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cat-row input{text-align:right;font-family:'IBM Plex Mono',monospace;padding:6px 6px;font-size:13px;}
   .cat-due-label{font-size:9.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px;}
   .add-cat{display:grid;grid-template-columns:1fr 70px 60px auto;gap:6px;margin-top:10px;align-items:end;}
   .btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:8px 14px;border-radius:4px;border:1px solid var(--brass);background:var(--brass);color:#fff;cursor:pointer;white-space:nowrap;}
   .btn:hover{opacity:.9;}
-  .btn.secondary{background:#fff;color:var(--brass);}
+  .btn.secondary{background:var(--card);color:var(--brass);}
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
   .form-grid.full{grid-template-columns:1fr;}
   .expense-list{margin-top:4px;}
@@ -63,17 +67,23 @@
   .exp-amt{font-family:'IBM Plex Mono',monospace;font-size:14px;}
   .exp-del{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:15px;}
   .exp-del:hover{color:var(--brick);}
-  .bar-track{height:6px;background:var(--paper-line);border-radius:3px;overflow:hidden;margin-top:6px;}
+  .bar-track{height:6px;background:#E2E5E7;border:1px solid #000000;border-radius:3px;overflow:hidden;margin-top:6px;}
   .bar-fill{height:100%;border-radius:3px;background:var(--sage);}
   .bar-fill.over{background:var(--brick);}
   .cat-summary{padding:10px 0;border-bottom:1px dashed var(--paper-line);}
   .cat-summary:last-child{border-bottom:none;}
   .empty{font-size:13px;color:var(--ink-soft);text-align:center;padding:14px 0;}
   .pill{font-size:11px;font-family:'IBM Plex Mono',monospace;padding:2px 7px;border-radius:10px;}
-  .pill.under{background:var(--sage-bg);color:var(--sage);}
-  .pill.over{background:var(--brick-bg);color:var(--brick);}
+  .pill.under{background:var(--paper);color:#000000;border:1px solid var(--paper-line);}
+  .pill.over{background:var(--paper);color:#000000;border:1px solid var(--paper-line);}
   .due-badge{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
   .due-badge.overdue{color:var(--brick);font-weight:500;}
+  .pcheck-row{padding:8px 0;border-bottom:1px dashed var(--paper-line);}
+  .pcheck-row:last-child{border-bottom:none;}
+  .pcheck-date{font-size:14px;font-weight:500;margin-bottom:8px;}
+  .pcheck-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .pcheck-fields input{width:100%;text-align:right;font-family:'IBM Plex Mono',monospace;padding:6px 8px;font-size:13px;}
+  .pcheck-label{font-size:9.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;}
 </style>
 </head>
 <body>
@@ -100,13 +110,18 @@
 
   <div class="card">
     <div class="row">
-      <h2 style="margin:0;">Expected income</h2>
-      <input type="number" id="incomeInput" placeholder="$0" style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;">
+      <h2 style="margin:0;">Paycheck schedule</h2>
     </div>
-    <div class="row" style="margin-top:10px;">
-      <h2 style="margin:0;">Actual income</h2>
-      <input type="number" id="actualIncomeInput" placeholder="$0" style="width:110px;text-align:right;font-family:'IBM Plex Mono',monospace;">
+    <div class="row" style="margin-top:10px;gap:10px;">
+      <span style="font-size:13px;color:var(--ink-soft);">A date you get paid</span>
+      <input type="date" id="paycheckAnchorInput" style="width:150px;">
     </div>
+    <p class="sub" style="margin:8px 0 0;font-size:11.5px;">Repeats every 2 weeks from that date — used to match each bill to a paycheck.</p>
+  </div>
+
+  <div class="card">
+    <h2>Paychecks this month</h2>
+    <div id="paycheckIncomeList"></div>
   </div>
 
   <div class="stat-grid">
@@ -126,10 +141,25 @@
   </div>
 
   <div class="card">
-    <h2>Categories &amp; budget</h2>
+    <h2>Bills &amp; budget</h2>
     <div id="catList"></div>
-    <div class="add-cat">
-      <input type="text" id="newCatName" placeholder="New category">
+    <div class="add-cat" style="grid-template-columns:1fr 1fr;">
+      <input type="text" id="newCatName" placeholder="Bill name">
+      <select id="newCatGeneral">
+        <option value="Housing">Housing</option>
+        <option value="Utilities">Utilities</option>
+        <option value="Transportation">Transportation</option>
+        <option value="Food">Food</option>
+        <option value="Subscriptions">Subscriptions</option>
+        <option value="Entertainment">Entertainment</option>
+        <option value="Insurance">Insurance</option>
+        <option value="Debt">Debt</option>
+        <option value="Personal">Personal</option>
+        <option value="Savings">Savings</option>
+        <option value="Other" selected>Other</option>
+      </select>
+    </div>
+    <div class="add-cat" style="grid-template-columns:1fr 1fr auto;margin-top:8px;">
       <input type="number" id="newCatAmt" placeholder="$">
       <input type="number" id="newCatDue" placeholder="Due day" min="1" max="31">
       <button class="btn" id="addCatBtn">Add</button>
@@ -139,6 +169,11 @@
   <div class="card">
     <h2>This month by category</h2>
     <div id="catSummary"></div>
+  </div>
+
+  <div class="card">
+    <h2>By paycheck</h2>
+    <div id="paycheckSummary"></div>
   </div>
 
   <div class="card">
@@ -166,7 +201,8 @@ const monthNames = ["January","February","March","April","May","June","July","Au
 let currentMonth = new Date().toISOString().slice(0,7);
 let categories = {};
 let expenses = [];
-let income = { expected: 0, actual: 0 };
+let paycheckIncomes = {}; // { 'YYYY-MM-DD': { expected, actual } }
+let paycheckAnchor = '';
 
 // Fill these in with your own Firebase project's config (see setup instructions).
 const FIREBASE_CONFIG = {
@@ -281,17 +317,20 @@ async function loadCategories(){
   let migrated = false;
   for(const name of Object.keys(categories)){
     if(typeof categories[name] === 'number'){
-      categories[name] = { amount: categories[name], dueDay: null };
+      categories[name] = { amount: categories[name], dueDay: null, generalCategory: 'Other' };
+      migrated = true;
+    } else if(categories[name].generalCategory === undefined){
+      categories[name].generalCategory = 'Other';
       migrated = true;
     }
   }
   if(Object.keys(categories).length === 0){
     categories = {
-      Groceries:{amount:400, dueDay:null},
-      Rent:{amount:1200, dueDay:1},
-      Transport:{amount:150, dueDay:null},
-      Dining:{amount:150, dueDay:null},
-      Fun:{amount:100, dueDay:null}
+      Groceries:{amount:400, dueDay:null, generalCategory:'Food'},
+      Rent:{amount:1200, dueDay:1, generalCategory:'Housing'},
+      Transport:{amount:150, dueDay:null, generalCategory:'Transportation'},
+      Dining:{amount:150, dueDay:null, generalCategory:'Food'},
+      Fun:{amount:100, dueDay:null, generalCategory:'Personal'}
     };
     migrated = true;
   }
@@ -300,24 +339,101 @@ async function loadCategories(){
 async function saveCategories(){
   await store.set('budget-categories', JSON.stringify(categories));
 }
-async function loadIncome(){
-  try{
-    const res = await store.get('income:' + currentMonth);
-    if(!res){ income = { expected: 0, actual: 0 }; return; }
-    const parsed = JSON.parse(res.value);
-    if(typeof parsed === 'number'){
-      income = { expected: parsed, actual: 0 };
-    } else {
-      income = { expected: parsed.expected || 0, actual: parsed.actual || 0 };
-    }
-  }catch(e){
-    const num = parseFloat((await store.get('income:' + currentMonth))?.value);
-    income = { expected: isNaN(num) ? 0 : num, actual: 0 };
+function getPaycheckDatesInMonth(ym){
+  if(!paycheckAnchor) return [];
+  const [y, m] = ym.split('-').map(Number);
+  const firstDay = new Date(y, m-1, 1);
+  const lastDay = new Date(y, m, 0);
+  const anchor = new Date(paycheckAnchor + 'T00:00:00');
+  const diffDays = Math.round((firstDay - anchor) / 86400000);
+  const periods = Math.ceil(diffDays / 14);
+  let d = new Date(anchor);
+  d.setDate(d.getDate() + periods * 14);
+  const dates = [];
+  while(d <= lastDay){
+    if(d >= firstDay) dates.push(new Date(d));
+    d = new Date(d);
+    d.setDate(d.getDate() + 14);
   }
+  return dates;
 }
-async function saveIncome(){
-  await store.set('income:' + currentMonth, JSON.stringify(income));
+
+function dateKey(d){
+  return d.toISOString().slice(0,10);
 }
+
+async function loadPaycheckIncomes(){
+  try{
+    const res = await store.get('paycheck-incomes');
+    paycheckIncomes = res ? JSON.parse(res.value) : {};
+  }catch(e){ paycheckIncomes = {}; }
+}
+async function savePaycheckIncomes(){
+  await store.set('paycheck-incomes', JSON.stringify(paycheckIncomes));
+}
+function getPaycheckIncome(key){
+  return paycheckIncomes[key] || { expected: 0, actual: 0 };
+}
+async function migrateOldMonthlyIncome(){
+  if(!paycheckAnchor) return;
+  const dates = getPaycheckDatesInMonth(currentMonth);
+  if(dates.length === 0) return;
+  const hasAnyData = dates.some(d => paycheckIncomes[dateKey(d)]);
+  if(hasAnyData) return; // don't overwrite anything already entered per-paycheck
+  let res;
+  try{ res = await store.get('income:' + currentMonth); }catch(e){ return; }
+  if(!res) return;
+  let old;
+  try{ old = JSON.parse(res.value); }catch(e){ old = null; }
+  if(old == null) return;
+  const oldExpected = typeof old === 'number' ? old : (old.expected || 0);
+  const oldActual = typeof old === 'number' ? 0 : (old.actual || 0);
+  if(oldExpected === 0 && oldActual === 0) return;
+  const perCheck = dates.length;
+  dates.forEach(d => {
+    paycheckIncomes[dateKey(d)] = {
+      expected: Math.round((oldExpected / perCheck) * 100) / 100,
+      actual: Math.round((oldActual / perCheck) * 100) / 100
+    };
+  });
+  await savePaycheckIncomes();
+}
+
+async function loadPaycheckAnchor(){
+  try{
+    const res = await store.get('paycheck-anchor');
+    paycheckAnchor = res ? res.value : '';
+  }catch(e){ paycheckAnchor = ''; }
+}
+async function savePaycheckAnchor(){
+  await store.set('paycheck-anchor', paycheckAnchor);
+}
+
+// Returns the most recent paycheck date on or before targetDate, given the
+// biweekly anchor. Works correctly for dates before the anchor too.
+function paycheckOnOrBefore(targetDate){
+  if(!paycheckAnchor) return null;
+  const anchor = new Date(paycheckAnchor + 'T00:00:00');
+  const diffDays = Math.round((targetDate - anchor) / 86400000);
+  const periods = Math.floor(diffDays / 14);
+  const result = new Date(anchor);
+  result.setDate(result.getDate() + periods * 14);
+  return result;
+}
+
+function formatShortDate(d){
+  return monthNames[d.getMonth()].slice(0,3) + ' ' + d.getDate();
+}
+
+function paycheckLabelForDueDay(dueDay){
+  if(!paycheckAnchor || !dueDay) return null;
+  const [y, m] = currentMonth.split('-').map(Number);
+  const targetDate = new Date(y, m - 1, dueDay);
+  const pd = paycheckOnOrBefore(targetDate);
+  if(!pd) return null;
+  return formatShortDate(pd);
+}
+
 async function loadExpenses(){
   try{
     const res = await store.get('expenses:' + currentMonth);
@@ -344,15 +460,30 @@ function renderMonthSelect(){
 function renderCatList(){
   const list = document.getElementById('catList');
   const names = Object.keys(categories);
-  if(names.length===0){ list.innerHTML = '<div class="empty">No categories yet — add one below.</div>'; return; }
+  if(names.length===0){ list.innerHTML = '<div class="empty">No bills yet — add one below.</div>'; return; }
+  const genOptions = ['Housing','Utilities','Transportation','Food','Subscriptions','Entertainment','Insurance','Debt','Personal','Savings','Other'];
   list.innerHTML = names.map(name => `
     <div class="cat-row">
-      <div class="cat-name">${escapeHtml(name)}</div>
-      <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}">
-      <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due" min="1" max="31" value="${categories[name].dueDay || ''}">
-      <button data-cat="${escapeHtml(name)}" class="del-cat-btn" aria-label="Remove ${escapeHtml(name)}">×</button>
+      <div class="cat-row-top">
+        <div class="cat-name">${escapeHtml(name)}</div>
+        <button data-cat="${escapeHtml(name)}" class="del-cat-btn" aria-label="Remove ${escapeHtml(name)}">×</button>
+      </div>
+      <div class="cat-row-fields">
+        <select data-cat="${escapeHtml(name)}" class="cat-general-input">
+          ${genOptions.map(g => `<option value="${g}" ${categories[name].generalCategory===g?'selected':''}>${g}</option>`).join('')}
+        </select>
+        <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}" placeholder="$">
+        <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due day" min="1" max="31" value="${categories[name].dueDay || ''}">
+      </div>
     </div>
   `).join('');
+  list.querySelectorAll('.cat-general-input').forEach(sel => {
+    sel.addEventListener('change', async (e) => {
+      const cat = e.target.getAttribute('data-cat');
+      categories[cat].generalCategory = e.target.value;
+      await saveCategories();
+    });
+  });
   list.querySelectorAll('.cat-amt-input').forEach(inp => {
     inp.addEventListener('input', async (e) => {
       const cat = e.target.getAttribute('data-cat');
@@ -381,6 +512,57 @@ function renderCatList(){
   });
 }
 
+function renderPaycheckIncomeList(){
+  const box = document.getElementById('paycheckIncomeList');
+  if(!paycheckAnchor){
+    box.innerHTML = '<div class="empty">Set a payday in the Paycheck schedule card below to add income here.</div>';
+    return;
+  }
+  const dates = getPaycheckDatesInMonth(currentMonth);
+  if(dates.length === 0){
+    box.innerHTML = '<div class="empty">No paychecks land in this month.</div>';
+    return;
+  }
+  box.innerHTML = dates.map(d => {
+    const key = dateKey(d);
+    const inc = getPaycheckIncome(key);
+    return `
+      <div class="pcheck-row" data-key="${key}">
+        <div class="pcheck-date">${formatShortDate(d)}</div>
+        <div class="pcheck-fields">
+          <div>
+            <span class="pcheck-label">Expected</span>
+            <input type="number" class="pcheck-expected" data-key="${key}" value="${inc.expected || ''}" placeholder="$0">
+          </div>
+          <div>
+            <span class="pcheck-label">Actual</span>
+            <input type="number" class="pcheck-actual" data-key="${key}" value="${inc.actual || ''}" placeholder="$0">
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  async function syncPcheck(e, field){
+    const key = e.target.getAttribute('data-key');
+    if(!paycheckIncomes[key]) paycheckIncomes[key] = { expected: 0, actual: 0 };
+    paycheckIncomes[key][field] = parseFloat(e.target.value) || 0;
+    renderStats();
+    renderPaycheckSummary();
+    await savePaycheckIncomes();
+  }
+  box.querySelectorAll('.pcheck-expected').forEach(inp => {
+    inp.addEventListener('input', e => syncPcheck(e, 'expected'));
+    inp.addEventListener('change', e => syncPcheck(e, 'expected'));
+    inp.addEventListener('blur', e => syncPcheck(e, 'expected'));
+  });
+  box.querySelectorAll('.pcheck-actual').forEach(inp => {
+    inp.addEventListener('input', e => syncPcheck(e, 'actual'));
+    inp.addEventListener('change', e => syncPcheck(e, 'actual'));
+    inp.addEventListener('blur', e => syncPcheck(e, 'actual'));
+  });
+}
+
 function renderExpCatOptions(){
   const sel = document.getElementById('expCat');
   const names = Object.keys(categories);
@@ -391,13 +573,18 @@ function renderStats(){
   const totalBudget = Object.values(categories).reduce((a,c)=>a+c.amount,0);
   const totalSpent = expenses.reduce((a,e)=>a+e.amount,0);
   const remain = totalBudget - totalSpent;
-  const unbudgeted = income.expected - totalBudget;
-  const leftExpected = income.expected - totalSpent;
-  const leftActual = income.actual - totalSpent;
-  const incomeDiff = income.actual - income.expected;
 
-  document.getElementById('statIncome').textContent = fmt(income.expected);
-  document.getElementById('statActualIncome').textContent = fmt(income.actual);
+  const monthPaychecks = getPaycheckDatesInMonth(currentMonth);
+  const totalExpectedIncome = monthPaychecks.reduce((a,d)=>a+getPaycheckIncome(dateKey(d)).expected,0);
+  const totalActualIncome = monthPaychecks.reduce((a,d)=>a+getPaycheckIncome(dateKey(d)).actual,0);
+
+  const unbudgeted = totalExpectedIncome - totalBudget;
+  const leftExpected = totalExpectedIncome - totalSpent;
+  const leftActual = totalActualIncome - totalSpent;
+  const incomeDiff = totalActualIncome - totalExpectedIncome;
+
+  document.getElementById('statIncome').textContent = fmt(totalExpectedIncome);
+  document.getElementById('statActualIncome').textContent = fmt(totalActualIncome);
 
   const diffEl = document.getElementById('statIncomeDiff');
   diffEl.textContent = (incomeDiff >= 0 ? '+' : '') + fmt(incomeDiff);
@@ -423,43 +610,176 @@ function renderStats(){
   leftActualEl.style.color = leftActual < 0 ? 'var(--brick)' : 'var(--sage)';
 }
 
+let expandedGroups = new Set();
+
+function groupByGeneral(names){
+  const groups = {};
+  names.forEach(n => {
+    const gc = categories[n].generalCategory || 'Other';
+    if(!groups[gc]) groups[gc] = [];
+    groups[gc].push(n);
+  });
+  return groups;
+}
+
 function renderCatSummary(){
   const box = document.getElementById('catSummary');
-  const names = Object.keys(categories).sort((a, b) => {
-    const dueA = categories[a].dueDay;
-    const dueB = categories[b].dueDay;
-    if(dueA == null && dueB == null) return a.localeCompare(b);
-    if(dueA == null) return 1;
-    if(dueB == null) return -1;
-    return dueA - dueB;
-  });
+  const names = Object.keys(categories);
   if(names.length===0){ box.innerHTML = '<div class="empty">Nothing to show yet.</div>'; return; }
   const realCurrentMonth = new Date().toISOString().slice(0,7);
   const isViewingRealCurrentMonth = currentMonth === realCurrentMonth;
   const todayDay = new Date().getDate();
-  box.innerHTML = names.map(name => {
-    const budget = categories[name].amount;
-    const dueDay = categories[name].dueDay;
-    const spent = expenses.filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
-    const pct = budget > 0 ? Math.min(100, (spent/budget)*100) : (spent>0?100:0);
+
+  const groups = groupByGeneral(names);
+  const groupKeys = Object.keys(groups).sort((a,b) => {
+    const minA = Math.min(...groups[a].map(n => categories[n].dueDay ?? 999));
+    const minB = Math.min(...groups[b].map(n => categories[n].dueDay ?? 999));
+    if(minA !== minB) return minA - minB;
+    return a.localeCompare(b);
+  });
+
+  box.innerHTML = groupKeys.map(gc => {
+    const billNames = groups[gc];
+    const budget = billNames.reduce((a,n)=>a+categories[n].amount,0);
+    const spent = billNames.reduce((a,n)=>a+expenses.filter(e=>e.category===n).reduce((x,e)=>x+e.amount,0),0);
+    const pct = budget>0 ? Math.min(100,(spent/budget)*100) : (spent>0?100:0);
     const over = spent > budget;
-    const unpaid = dueDay && spent < budget;
-    const overdue = isViewingRealCurrentMonth && unpaid && todayDay > dueDay;
-    let dueText = '';
-    if(dueDay){
-      dueText = overdue ? `Overdue — due day ${dueDay}` : `Due day ${dueDay}`;
-    }
+    const toggleKey = 'cs:' + gc;
+    const expanded = expandedGroups.has(toggleKey);
+
+    const billRows = billNames.map(name => {
+      const bBudget = categories[name].amount;
+      const bDueDay = categories[name].dueDay;
+      const bSpent = expenses.filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
+      const bPct = bBudget>0 ? Math.min(100,(bSpent/bBudget)*100) : (bSpent>0?100:0);
+      const bOver = bSpent > bBudget;
+      const bUnpaid = bDueDay && bSpent < bBudget;
+      const bOverdue = isViewingRealCurrentMonth && bUnpaid && todayDay > bDueDay;
+      let dueText = '';
+      if(bDueDay){
+        const payLabel = paycheckLabelForDueDay(bDueDay);
+        const dueBase = bOverdue ? `Overdue — due day ${bDueDay}` : `Due day ${bDueDay}`;
+        dueText = payLabel ? `${dueBase} · pay from ${payLabel}` : dueBase;
+      }
+      return `
+        <div style="padding:8px 0 8px 14px;border-left:2px solid var(--paper-line);margin-top:6px;">
+          <div class="row">
+            <span class="cat-name">${escapeHtml(name)}</span>
+            <span class="pill ${bOver?'over':'under'}">${fmt(bSpent)} / ${fmt(bBudget)}</span>
+          </div>
+          ${dueText ? `<span class="due-badge ${bOverdue?'overdue':''}">${dueText}</span>` : ''}
+          <div class="bar-track"><div class="bar-fill ${bOver?'over':''}" style="width:${bPct}%;"></div></div>
+        </div>
+      `;
+    }).join('');
+
     return `
       <div class="cat-summary">
-        <div class="row">
-          <span class="cat-name">${escapeHtml(name)}</span>
+        <div class="row" style="cursor:pointer;" data-toggle-key="${toggleKey}">
+          <span class="cat-name">${expanded?'▾':'▸'} ${escapeHtml(gc)}</span>
           <span class="pill ${over?'over':'under'}">${fmt(spent)} / ${fmt(budget)}</span>
         </div>
-        ${dueText ? `<span class="due-badge ${overdue?'overdue':''}">${dueText}</span>` : ''}
         <div class="bar-track"><div class="bar-fill ${over?'over':''}" style="width:${pct}%;"></div></div>
+        ${expanded ? billRows : ''}
       </div>
     `;
   }).join('');
+
+  box.querySelectorAll('[data-toggle-key]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.getAttribute('data-toggle-key');
+      if(expandedGroups.has(key)) expandedGroups.delete(key); else expandedGroups.add(key);
+      renderCatSummary();
+    });
+  });
+}
+
+function renderPaycheckSummary(){
+  const box = document.getElementById('paycheckSummary');
+  const names = Object.keys(categories);
+  if(!paycheckAnchor){ box.innerHTML = '<div class="empty">Set a payday above to see bills grouped by paycheck.</div>'; return; }
+
+  const monthPaychecks = getPaycheckDatesInMonth(currentMonth);
+  const groups = {};
+  monthPaychecks.forEach(d => {
+    const key = dateKey(d);
+    groups[key] = { label: formatShortDate(d), billTotal: 0, spent: 0, cats: [], income: getPaycheckIncome(key) };
+  });
+  const unscheduled = { total: 0, spent: 0, cats: [] };
+
+  names.forEach(name => {
+    const cat = categories[name];
+    const spent = expenses.filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
+    if(!cat.dueDay){
+      unscheduled.total += cat.amount;
+      unscheduled.spent += spent;
+      unscheduled.cats.push(name);
+      return;
+    }
+    const [y, m] = currentMonth.split('-').map(Number);
+    const targetDate = new Date(y, m - 1, cat.dueDay);
+    const pd = paycheckOnOrBefore(targetDate);
+    const key = dateKey(pd);
+    if(!groups[key]) groups[key] = { label: formatShortDate(pd), billTotal: 0, spent: 0, cats: [], income: getPaycheckIncome(key) };
+    groups[key].billTotal += cat.amount;
+    groups[key].spent += spent;
+    groups[key].cats.push(name);
+  });
+
+  const sortedKeys = Object.keys(groups).sort();
+  let html = sortedKeys.map(key => {
+    const g = groups[key];
+    const coverage = g.income.expected - g.billTotal;
+
+    const subgroups = groupByGeneral(g.cats);
+    const subgroupHtml = Object.keys(subgroups).sort().map(gc => {
+      const gcBills = subgroups[gc];
+      const gcBudget = gcBills.reduce((a,n)=>a+categories[n].amount,0);
+      const gcSpent = gcBills.reduce((a,n)=>a+expenses.filter(e=>e.category===n).reduce((x,e)=>x+e.amount,0),0);
+      const toggleKey = 'pc:' + key + ':' + gc;
+      const expanded = expandedGroups.has(toggleKey);
+      const billList = expanded ? gcBills.map(n => {
+        const bSpent = expenses.filter(e=>e.category===n).reduce((a,e)=>a+e.amount,0);
+        return `<div class="due-badge" style="padding-left:12px;">${escapeHtml(n)}: ${fmt(bSpent)} / ${fmt(categories[n].amount)}</div>`;
+      }).join('') : '';
+      return `<div class="due-badge" data-toggle-key="${toggleKey}" style="cursor:pointer;">${expanded?'▾':'▸'} ${escapeHtml(gc)}: ${fmt(gcSpent)} / ${fmt(gcBudget)}</div>${billList}`;
+    }).join('');
+
+    return `
+      <div class="cat-summary">
+        <div class="row">
+          <span class="cat-name">Paycheck ${g.label}</span>
+          <span class="pill ${g.spent > g.billTotal ? 'over' : 'under'}">${fmt(g.spent)} / ${fmt(g.billTotal)} bills</span>
+        </div>
+        ${g.cats.length ? subgroupHtml : '<span class="due-badge">No bills assigned</span>'}
+        <div class="row" style="margin-top:6px;">
+          <span class="due-badge">Income: ${fmt(g.income.expected)}</span>
+          <span class="due-badge ${coverage < 0 ? 'overdue' : ''}">${coverage < 0 ? 'Short ' + fmt(Math.abs(coverage)) : 'Covers with ' + fmt(coverage) + ' left'}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if(unscheduled.cats.length > 0){
+    html += `
+      <div class="cat-summary">
+        <div class="row">
+          <span class="cat-name">No due day set</span>
+          <span class="pill under">${fmt(unscheduled.total)}</span>
+        </div>
+        <span class="due-badge">${escapeHtml(unscheduled.cats.join(', '))}</span>
+      </div>
+    `;
+  }
+
+  box.innerHTML = html || '<div class="empty">Nothing to show yet.</div>';
+  box.querySelectorAll('[data-toggle-key]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.getAttribute('data-toggle-key');
+      if(expandedGroups.has(key)) expandedGroups.delete(key); else expandedGroups.add(key);
+      renderPaycheckSummary();
+    });
+  });
 }
 
 function renderExpenseList(){
@@ -502,46 +822,39 @@ function escapeHtml(s){
 
 function renderAll(){
   document.getElementById('tagline').textContent = monthLabel(currentMonth) + ' · kept right here, on this device';
-  document.getElementById('incomeInput').value = income.expected || '';
-  document.getElementById('actualIncomeInput').value = income.actual || '';
+  document.getElementById('paycheckAnchorInput').value = paycheckAnchor || '';
   const paidInput = document.getElementById('expPaidDate');
   if(paidInput && !paidInput.value) paidInput.value = new Date().toISOString().slice(0,10);
   renderMonthSelect();
   renderCatList();
   renderExpCatOptions();
+  renderPaycheckIncomeList();
   renderStats();
   renderCatSummary();
+  renderPaycheckSummary();
   renderExpenseList();
 }
 
 async function switchMonth(ym){
   currentMonth = ym;
-  await loadIncome();
   await loadExpenses();
+  await migrateOldMonthlyIncome();
   renderAll();
 }
 
-function syncExpectedIncome(e){
-  income.expected = parseFloat(e.target.value) || 0;
+async function syncPaycheckAnchor(e){
+  paycheckAnchor = e.target.value;
+  await migrateOldMonthlyIncome();
+  renderPaycheckIncomeList();
+  renderCatSummary();
   renderStats();
-  saveIncome();
+  renderPaycheckSummary();
+  await savePaycheckAnchor();
 }
-function syncActualIncome(e){
-  income.actual = parseFloat(e.target.value) || 0;
-  renderStats();
-  saveIncome();
-}
-const incomeInputEl = document.getElementById('incomeInput');
-incomeInputEl.addEventListener('input', syncExpectedIncome);
-incomeInputEl.addEventListener('change', syncExpectedIncome);
-incomeInputEl.addEventListener('keyup', syncExpectedIncome);
-incomeInputEl.addEventListener('blur', syncExpectedIncome);
-
-const actualIncomeInputEl = document.getElementById('actualIncomeInput');
-actualIncomeInputEl.addEventListener('input', syncActualIncome);
-actualIncomeInputEl.addEventListener('change', syncActualIncome);
-actualIncomeInputEl.addEventListener('keyup', syncActualIncome);
-actualIncomeInputEl.addEventListener('blur', syncActualIncome);
+const paycheckAnchorEl = document.getElementById('paycheckAnchorInput');
+paycheckAnchorEl.addEventListener('input', syncPaycheckAnchor);
+paycheckAnchorEl.addEventListener('change', syncPaycheckAnchor);
+paycheckAnchorEl.addEventListener('blur', syncPaycheckAnchor);
 
 document.getElementById('syncBtn').addEventListener('click', async () => {
   const val = document.getElementById('syncCodeInput').value.trim();
@@ -554,8 +867,10 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
   localStorage.setItem('ledger-sync-code', syncCode);
   updateSyncStatus();
   await loadCategories();
-  await loadIncome();
   await loadExpenses();
+  await loadPaycheckAnchor();
+  await loadPaycheckIncomes();
+  await migrateOldMonthlyIncome();
   renderAll();
 });
 
@@ -573,13 +888,14 @@ document.getElementById('nextBtn').addEventListener('click', () => {
 
 document.getElementById('addCatBtn').addEventListener('click', async () => {
   const nameInput = document.getElementById('newCatName');
+  const generalInput = document.getElementById('newCatGeneral');
   const amtInput = document.getElementById('newCatAmt');
   const dueInput = document.getElementById('newCatDue');
   const name = nameInput.value.trim();
   const amt = parseFloat(amtInput.value) || 0;
   const dueVal = parseInt(dueInput.value, 10);
   if(!name) return;
-  categories[name] = { amount: amt, dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null };
+  categories[name] = { amount: amt, dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null, generalCategory: generalInput.value };
   await saveCategories();
   nameInput.value = '';
   amtInput.value = '';
@@ -617,8 +933,10 @@ document.getElementById('addExpBtn').addEventListener('click', async () => {
   initFirebase();
   updateSyncStatus();
   await loadCategories();
-  await loadIncome();
   await loadExpenses();
+  await loadPaycheckAnchor();
+  await loadPaycheckIncomes();
+  await migrateOldMonthlyIncome();
   renderAll();
 })();
 </script>
