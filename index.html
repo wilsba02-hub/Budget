@@ -1452,6 +1452,8 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
   await loadPaycheckIncomes();
   await migrateOldMonthlyIncome();
   renderAll();
+  refreshUnpaidCarryovers();
+  renderDebtPayoff();
 });
 
 document.getElementById('monthSelect').addEventListener('change', (e) => switchMonth(e.target.value));
