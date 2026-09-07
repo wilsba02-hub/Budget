@@ -6,6 +6,11 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<meta name="theme-color" content="#0E7C7B">
+<link rel="apple-touch-icon" href="icon.png">
 <title>Ledger — Monthly Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +29,22 @@
     --brick:#B5482F;
     --brick-bg:#F7E6E1;
     --brass:#0E7C7B;
+    --track-bg:#E2E5E7;
+    --track-border:#000000;
+  }
+  body.dark{
+    --paper:#15191C;
+    --card:#1F252A;
+    --paper-line:#4A5A63;
+    --ink:#F2F4F5;
+    --ink-soft:#B8C2C8;
+    --sage:#2FE39A;
+    --sage-bg:#12332A;
+    --brick:#E06A4C;
+    --brick-bg:#3A211B;
+    --brass:#3FCFC0;
+    --track-bg:#2A3136;
+    --track-border:#F2F4F5;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;}
@@ -68,17 +89,20 @@
   .exp-amt{font-family:'IBM Plex Mono',monospace;font-size:14px;}
   .exp-del{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:15px;}
   .exp-del:hover{color:var(--brick);}
-  .bar-track{height:6px;background:#E2E5E7;border:1px solid #000000;border-radius:3px;overflow:hidden;margin-top:6px;}
+  .exp-edit{border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:14px;}
+  .exp-edit:hover{color:var(--brass);}
+  .bar-track{height:6px;background:var(--track-bg);border:1px solid var(--track-border);border-radius:3px;overflow:hidden;margin-top:6px;}
   .bar-fill{height:100%;border-radius:3px;background:var(--sage);}
   .bar-fill.over{background:var(--brick);}
   .cat-summary{padding:10px 0;border-bottom:1px dashed var(--paper-line);}
   .cat-summary:last-child{border-bottom:none;}
   .empty{font-size:13px;color:var(--ink-soft);text-align:center;padding:14px 0;}
   .pill{font-size:11px;font-family:'IBM Plex Mono',monospace;padding:2px 7px;border-radius:10px;}
-  .pill.under{background:var(--paper);color:#000000;border:1px solid var(--paper-line);}
-  .pill.over{background:var(--paper);color:#000000;border:1px solid var(--paper-line);}
+  .pill.under{background:var(--paper);color:var(--ink);border:1px solid var(--paper-line);}
+  .pill.over{background:var(--paper);color:var(--ink);border:1px solid var(--paper-line);}
   .due-badge{font-size:10.5px;color:var(--ink-soft);font-family:'Inter',sans-serif;}
   .due-badge.overdue{color:var(--brick);font-weight:500;}
+  .due-badge.soon{color:#B8860B;font-weight:500;}
   .pcheck-row{padding:8px 0;border-bottom:1px dashed var(--paper-line);}
   .pcheck-row:last-child{border-bottom:none;}
   .pcheck-date{font-size:14px;font-weight:500;margin-bottom:8px;}
@@ -87,6 +111,16 @@
   .pcheck-label{font-size:9.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;}
   .section-arrow{display:inline-block;width:14px;}
   .pc-bill-label{font-family:'Inter',sans-serif;font-size:12px;color:var(--ink-soft);display:block;margin-top:4px;}
+  .tab-bar{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px;padding-bottom:2px;}
+  .tab-btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:8px 14px;border-radius:20px;border:1px solid var(--paper-line);background:var(--card);color:var(--ink);cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .tab-btn.active{background:var(--brass);color:#fff;border-color:var(--brass);}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+  .tab-badge{display:inline-block;background:var(--brick);color:#fff;font-size:10px;font-weight:600;border-radius:10px;padding:1px 6px;margin-left:5px;}
+  .sync-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;cursor:pointer;align-self:center;background:var(--ink-soft);opacity:0.35;}
+  .sync-dot.ok{background:var(--sage);opacity:1;}
+  .sync-dot.error{background:var(--brick);opacity:1;}
+  .input-error{border-color:var(--brick) !important;background:var(--brick-bg) !important;}
 </style>
 </head>
 <body>
@@ -95,70 +129,23 @@
   <p class="sub" id="tagline">Loading your books…</p>
 
   <div class="row" style="margin-bottom:16px;gap:6px;">
+    <span class="sync-dot" id="syncDot" title="Sync status"></span>
     <select id="monthSelect" class="month-select" style="flex:1;"></select>
     <button class="btn secondary" id="prevBtn" style="padding:8px 12px;">‹</button>
     <button class="btn secondary" id="nextBtn" style="padding:8px 12px;">›</button>
+    <button class="btn" id="quickAddBtn" style="padding:8px 12px;">+</button>
+    <button class="btn secondary" id="darkModeBtn" style="padding:8px 12px;">🌙</button>
   </div>
 
-  <div class="card">
-    <div class="row" data-toggle-section="sync" style="cursor:pointer;">
-      <h2 style="margin:0;">Sync across devices</h2>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="due-badge" id="syncStatus">Not connected</span>
-        <span class="section-arrow">▾</span>
-      </div>
-    </div>
-    <div id="section-sync">
-    <div class="add-cat" style="grid-template-columns:1fr auto;margin-top:10px;">
-      <input type="text" id="syncCodeInput" placeholder="Pick a sync code">
-      <button class="btn" id="syncBtn">Connect</button>
-    </div>
-    </div>
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="overview">Overview<span class="tab-badge" id="overviewBadge" style="display:none;"></span></button>
+    <button class="tab-btn" data-tab="bills">Bills</button>
+    <button class="tab-btn" data-tab="paychecks">Paychecks</button>
+    <button class="tab-btn" data-tab="debt">Debt<span class="tab-badge" id="debtBadge" style="display:none;"></span></button>
+    <button class="tab-btn" data-tab="settings">Settings</button>
   </div>
 
-  <div class="card">
-    <div class="row" data-toggle-section="paychecks" style="cursor:pointer;">
-      <h2 style="margin:0;">Paychecks</h2>
-      <span class="section-arrow">▾</span>
-    </div>
-    <div id="section-paychecks">
-    <div class="row" style="margin-top:10px;gap:10px;">
-      <span style="font-size:13px;color:var(--ink-soft);">A date you get paid</span>
-      <input type="date" id="paycheckAnchorInput" style="width:150px;">
-    </div>
-    <p class="sub" style="margin:8px 0 0;font-size:11.5px;">Repeats every 2 weeks from that date — used to match each bill to a paycheck.</p>
-    <div id="paycheckIncomeList" style="margin-top:14px;"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="row" data-toggle-section="unpaidCarryover" style="cursor:pointer;">
-      <h2 style="margin:0;">Unpaid bills</h2>
-      <span class="section-arrow">▾</span>
-    </div>
-    <div id="section-unpaidCarryover">
-    <div id="unpaidCarryoverList"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="row" data-toggle-section="logExpense" style="cursor:pointer;">
-      <h2 style="margin:0;">Log an expense</h2>
-      <span class="section-arrow">▾</span>
-    </div>
-    <div id="section-logExpense">
-    <div class="form-grid">
-      <select id="expCat"></select>
-      <input type="number" id="expAmt" placeholder="Amount">
-    </div>
-    <div class="form-grid">
-      <input type="text" id="expNote" placeholder="Note (optional)">
-      <input type="date" id="expPaidDate">
-    </div>
-    <div id="expError" style="font-size:12px;color:var(--brick);margin-bottom:8px;display:none;"></div>
-    <button class="btn" id="addExpBtn" style="width:100%;">Add expense</button>
-    </div>
-  </div>
+  <div class="tab-content" data-tab-content="overview">
 
   <div class="stat-grid-cols">
     <div class="stat"><div class="label">Expected</div><div class="num" id="statIncome">$0</div></div>
@@ -173,6 +160,16 @@
   </div>
 
   <div class="card">
+    <div class="row" data-toggle-section="unpaidCarryover" style="cursor:pointer;">
+      <h2 style="margin:0;">Past due bills</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-unpaidCarryover">
+    <div id="unpaidCarryoverList"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="row" data-toggle-section="paycheckSummarySection" style="cursor:pointer;">
       <h2 style="margin:0;">By Paycheck</h2>
       <span class="section-arrow">▾</span>
@@ -182,15 +179,9 @@
     </div>
   </div>
 
-  <div class="card">
-    <div class="row" data-toggle-section="debtPayoff" style="cursor:pointer;">
-      <h2 style="margin:0;">Debt payoff</h2>
-      <span class="section-arrow">▾</span>
-    </div>
-    <div id="section-debtPayoff">
-    <div id="debtPayoffList"></div>
-    </div>
   </div>
+
+  <div class="tab-content" data-tab-content="bills">
 
   <div class="card">
     <div class="row" data-toggle-section="catSummarySection" style="cursor:pointer;">
@@ -234,6 +225,7 @@
     <div class="add-cat" style="grid-template-columns:1fr;margin-top:8px;">
       <input type="number" id="newCatDue2" placeholder="2nd due day (if paid twice a month)" min="1" max="31">
     </div>
+    <div id="catAddError" style="font-size:12px;color:var(--brick);margin-top:6px;display:none;"></div>
     <div class="row" data-toggle-section="expList" style="cursor:pointer;margin-top:20px;">
       <h2 style="margin:0;">Expenses this month</h2>
       <span class="section-arrow">▾</span>
@@ -241,6 +233,80 @@
     <div id="section-expList">
     <div class="expense-list" id="expList"></div>
     </div>
+    </div>
+  </div>
+
+  </div>
+
+  <div class="tab-content" data-tab-content="paychecks">
+
+  <div class="card">
+    <div class="row" data-toggle-section="paychecks" style="cursor:pointer;">
+      <h2 style="margin:0;">Paychecks</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-paychecks">
+    <div class="row" style="margin-top:10px;gap:10px;">
+      <span style="font-size:13px;color:var(--ink-soft);">A date you get paid</span>
+      <input type="date" id="paycheckAnchorInput" style="width:150px;">
+    </div>
+    <p class="sub" style="margin:8px 0 0;font-size:11.5px;">Repeats every 2 weeks from that date — used to match each bill to a paycheck.</p>
+    <div id="paycheckIncomeList" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" data-toggle-section="logExpense" style="cursor:pointer;">
+      <h2 style="margin:0;">Log an expense</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-logExpense">
+    <div class="form-grid">
+      <select id="expCat"></select>
+      <input type="number" id="expAmt" placeholder="Amount">
+    </div>
+    <div class="form-grid">
+      <input type="text" id="expNote" placeholder="Note (optional)">
+      <input type="date" id="expPaidDate">
+    </div>
+    <div id="expError" style="font-size:12px;color:var(--brick);margin-bottom:8px;display:none;"></div>
+    <button class="btn" id="addExpBtn" style="width:100%;">Add expense</button>
+    <button class="btn secondary" id="cancelEditBtn" style="width:100%;margin-top:8px;display:none;">Cancel edit</button>
+    </div>
+  </div>
+
+  </div>
+
+  <div class="tab-content" data-tab-content="debt">
+
+  <div class="card">
+    <div class="row" data-toggle-section="debtPayoff" style="cursor:pointer;">
+      <h2 style="margin:0;">Debt payoff</h2>
+      <span class="section-arrow">▾</span>
+    </div>
+    <div id="section-debtPayoff">
+    <div id="debtPayoffList"></div>
+    </div>
+  </div>
+
+  </div>
+
+  <div class="tab-content" data-tab-content="settings">
+
+  <div class="card">
+    <div class="row" data-toggle-section="sync" style="cursor:pointer;">
+      <h2 style="margin:0;">Sync across devices</h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="due-badge" id="syncStatus">Not connected</span>
+        <span class="section-arrow">▾</span>
+      </div>
+    </div>
+    <div id="section-sync">
+    <div class="add-cat" style="grid-template-columns:1fr auto;margin-top:10px;">
+      <input type="text" id="syncCodeInput" placeholder="Pick a sync code">
+      <button class="btn" id="syncBtn">Connect</button>
+    </div>
+    <button class="btn secondary" id="exportBtn" style="width:100%;margin-top:10px;">Export data (backup)</button>
     </div>
   </div>
 
@@ -254,6 +320,7 @@ let categories = {};
 let expenses = [];
 let paycheckIncomes = {}; // { 'YYYY-MM-DD': { expected, actual } }
 let paycheckAnchor = '';
+let editingExpenseId = null;
 
 // Fill these in with your own Firebase project's config (see setup instructions).
 const FIREBASE_CONFIG = {
@@ -290,16 +357,21 @@ function initFirebase(){
 function updateSyncStatus(){
   const el = document.getElementById('syncStatus');
   const input = document.getElementById('syncCodeInput');
+  const dot = document.getElementById('syncDot');
   if(FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
     el.textContent = 'Sync not set up yet';
+    if(dot) dot.className = 'sync-dot';
   } else if(lastSyncError){
     el.textContent = 'Error: ' + lastSyncError;
     el.classList.add('overdue');
+    if(dot) dot.className = 'sync-dot error';
   } else if(syncCode && firebaseDB){
     el.textContent = 'Synced: ' + syncCode;
     input.value = syncCode;
+    if(dot) dot.className = 'sync-dot ok';
   } else {
     el.textContent = 'Not connected';
+    if(dot) dot.className = 'sync-dot';
   }
 }
 
@@ -370,6 +442,7 @@ async function loadExpensesForMonth(ym){
 async function computeUnpaidCarryovers(){
   const realCurrentMonth = new Date().toISOString().slice(0,7);
   const [ry, rm] = realCurrentMonth.split('-').map(Number);
+  const todayDay = new Date().getDate();
   const results = [];
   const names = Object.keys(categories).filter(n => categories[n].dueDay);
   if(names.length === 0) return results;
@@ -387,6 +460,7 @@ async function computeUnpaidCarryovers(){
   names.forEach(name => {
     const budget = categories[name].amount;
     const createdMonth = categories[name].createdMonth;
+    let found = false;
     for(let i=1; i<=6; i++){
       const d = new Date(ry, rm-1-i, 1);
       const dueMonthKey = d.toISOString().slice(0,7);
@@ -400,7 +474,20 @@ async function computeUnpaidCarryovers(){
       });
       if(cumSpent < budget){
         results.push({ name, dueMonthKey, owed: budget - cumSpent });
+        found = true;
         break;
+      }
+    }
+    if(!found){
+      // Not carried over from a past month — check if it's overdue within THIS month.
+      const dueDays = [categories[name].dueDay, categories[name].dueDay2].filter(Boolean);
+      const isPastDueThisMonth = dueDays.some(dd => todayDay > dd);
+      const trackedByNow = !createdMonth || realCurrentMonth >= createdMonth;
+      if(isPastDueThisMonth && trackedByNow){
+        const spentThisMonth = (expensesByMonth[realCurrentMonth]||[]).filter(e=>e.category===name).reduce((a,e)=>a+e.amount,0);
+        if(spentThisMonth < budget){
+          results.push({ name, dueMonthKey: realCurrentMonth, owed: budget - spentThisMonth });
+        }
       }
     }
   });
@@ -416,19 +503,32 @@ async function refreshUnpaidCarryovers(){
   const box = document.getElementById('unpaidCarryoverList');
   if(!box) return;
   const list = await computeUnpaidCarryovers();
+  const badge = document.getElementById('overviewBadge');
+  if(badge){
+    if(list.length > 0){
+      badge.textContent = list.length;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
   if(list.length === 0){
-    box.innerHTML = '<div class="empty">Nothing unpaid — you\'re caught up.</div>';
+    box.innerHTML = '<div class="empty">Nothing past due — you\'re caught up.</div>';
     return;
   }
-  box.innerHTML = list.map(item => `
+  box.innerHTML = list.map(item => {
+    const realCurrentMonth = new Date().toISOString().slice(0,7);
+    const label = item.dueMonthKey === realCurrentMonth ? 'Due this month' : 'Since ' + monthLabelShort(item.dueMonthKey);
+    return `
     <div class="cat-summary">
       <div class="row">
         <span class="cat-name">${escapeHtml(item.name)}</span>
         <span class="due-badge overdue">${fmt(item.owed)} owed</span>
       </div>
-      <span class="due-badge overdue">Since ${monthLabelShort(item.dueMonthKey)}</span>
+      <span class="due-badge overdue">${label}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function estimatePayoff(balance, apr, payment){
@@ -462,6 +562,8 @@ function renderDebtPayoff(){
   const debtNames = Object.keys(categories).filter(n => categories[n].generalCategory === 'Debt' && categories[n].balance);
   if(debtNames.length === 0){
     box.innerHTML = '<div class="empty">Add a balance to a Debt bill in Bills &amp; budget to see payoff estimates.</div>';
+    const badge0 = document.getElementById('debtBadge');
+    if(badge0) badge0.style.display = 'none';
     return;
   }
 
@@ -469,13 +571,14 @@ function renderDebtPayoff(){
   let totalPayment = 0;
   let totalInterest = 0;
   let hasWarning = false;
+  let warningCount = 0;
 
   const rows = debtNames.map(name => {
     const cat = categories[name];
     const est = estimatePayoff(cat.balance, cat.apr, cat.amount);
     totalBalance += cat.balance || 0;
     totalPayment += cat.amount || 0;
-    if(est && est.warning) hasWarning = true;
+    if(est && est.warning){ hasWarning = true; warningCount++; }
     if(est && est.totalInterest != null) totalInterest += est.totalInterest;
     const payoffText = !est ? '—' : est.warning ? est.warning : `${formatMonths(est.months)} · ${fmt(est.totalInterest)} interest`;
     return `
@@ -502,7 +605,26 @@ function renderDebtPayoff(){
     </div>
   `;
 
-  box.innerHTML = summary + rows;
+  const avalancheOrder = [...debtNames].sort((a,b) => (categories[b].apr||0) - (categories[a].apr||0));
+  const snowballOrder = [...debtNames].sort((a,b) => (categories[a].balance||0) - (categories[b].balance||0));
+  const orderSuggestion = debtNames.length > 1 ? `
+    <div class="cat-summary">
+      <div class="pc-bill-label"><strong>Avalanche</strong> (highest APR first, saves the most interest): ${avalancheOrder.map(escapeHtml).join(' → ')}</div>
+      <div class="pc-bill-label" style="margin-top:6px;"><strong>Snowball</strong> (smallest balance first, quickest wins): ${snowballOrder.map(escapeHtml).join(' → ')}</div>
+    </div>
+  ` : '';
+
+  box.innerHTML = summary + orderSuggestion + rows;
+
+  const badge = document.getElementById('debtBadge');
+  if(badge){
+    if(warningCount > 0){
+      badge.textContent = warningCount;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
 }
 
 async function loadCategories(){
@@ -672,6 +794,22 @@ function renderMonthSelect(){
   sel.innerHTML = sorted.map(ym => `<option value="${ym}" ${ym===currentMonth?'selected':''}>${monthLabel(ym)}</option>`).join('');
 }
 
+function validateDueDayInput(input, otherValue){
+  const raw = input.value.trim();
+  if(raw === ''){ input.classList.remove('input-error'); return null; }
+  const val = parseInt(raw, 10);
+  const inRange = Number.isInteger(val) && val >= 1 && val <= 31;
+  const clashes = inRange && otherValue != null && val === otherValue;
+  if(!inRange || clashes){
+    input.classList.add('input-error');
+    input.title = !inRange ? 'Enter a day between 1 and 31' : 'Due days can\'t match — pick two different days';
+    return undefined; // invalid, caller should not save this value
+  }
+  input.classList.remove('input-error');
+  input.title = '';
+  return val;
+}
+
 function renderCatList(){
   const list = document.getElementById('catList');
   const names = Object.keys(categories);
@@ -687,7 +825,28 @@ function renderCatList(){
     const toggleKey = 'bl:' + gc;
     const expanded = expandedGroups.has(toggleKey);
 
-    const rows = billNames.map(name => `
+    const rows = billNames.map(name => {
+      const cat = categories[name];
+      const isEditing = editingBillNames.has(name);
+      if(!isEditing){
+        let summary = fmt(cat.amount);
+        if(cat.dueDay){
+          summary += ` · due ${cat.dueDay}`;
+          if(cat.dueDay2) summary += ` & ${cat.dueDay2}`;
+        }
+        return `
+          <div class="cat-row">
+            <div class="cat-row-top">
+              <div class="cat-name">${escapeHtml(name)} <span class="due-badge">${summary}</span></div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button class="edit-bill-btn" data-cat="${escapeHtml(name)}" aria-label="Edit ${escapeHtml(name)}">✎</button>
+                <button data-cat="${escapeHtml(name)}" class="del-cat-btn" aria-label="Remove ${escapeHtml(name)}">×</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `
       <div class="cat-row">
         <div class="cat-row-top">
           <div class="cat-name">${escapeHtml(name)}</div>
@@ -695,22 +854,24 @@ function renderCatList(){
         </div>
         <div class="cat-row-fields">
           <select data-cat="${escapeHtml(name)}" class="cat-general-input">
-            ${genOptions.map(g => `<option value="${g}" ${categories[name].generalCategory===g?'selected':''}>${g}</option>`).join('')}
+            ${genOptions.map(g => `<option value="${g}" ${cat.generalCategory===g?'selected':''}>${g}</option>`).join('')}
           </select>
-          <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${categories[name].amount}" placeholder="$">
-          <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due day" min="1" max="31" value="${categories[name].dueDay || ''}">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-amt-input" value="${cat.amount}" placeholder="$">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-due-input" placeholder="Due day" min="1" max="31" value="${cat.dueDay || ''}">
         </div>
         <div class="cat-row-fields" style="margin-top:6px;grid-template-columns:1fr;">
-          <input type="number" data-cat="${escapeHtml(name)}" class="cat-due2-input" placeholder="2nd due day (if paid twice a month)" min="1" max="31" value="${categories[name].dueDay2 || ''}">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-due2-input" placeholder="2nd due day (if paid twice a month)" min="1" max="31" value="${cat.dueDay2 || ''}">
         </div>
-        ${categories[name].generalCategory === 'Debt' ? `
+        ${cat.generalCategory === 'Debt' ? `
         <div class="cat-row-fields" style="margin-top:6px;grid-template-columns:1fr 1fr;">
-          <input type="number" data-cat="${escapeHtml(name)}" class="cat-balance-input" placeholder="Balance owed" value="${categories[name].balance || ''}">
-          <input type="number" data-cat="${escapeHtml(name)}" class="cat-apr-input" placeholder="APR %" step="0.01" value="${categories[name].apr || ''}">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-balance-input" placeholder="Balance owed" value="${cat.balance || ''}">
+          <input type="number" data-cat="${escapeHtml(name)}" class="cat-apr-input" placeholder="APR %" step="0.01" value="${cat.apr || ''}">
         </div>
         ` : ''}
+        <button class="btn secondary done-edit-btn" data-cat="${escapeHtml(name)}" style="width:100%;margin-top:8px;">Done</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     return `
       <div class="cat-summary">
@@ -727,6 +888,20 @@ function renderCatList(){
     el.addEventListener('click', () => {
       const key = el.getAttribute('data-toggle-key');
       if(expandedGroups.has(key)) expandedGroups.delete(key); else expandedGroups.add(key);
+      renderCatList();
+    });
+  });
+  list.querySelectorAll('.edit-bill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = btn.getAttribute('data-cat');
+      editingBillNames.add(cat);
+      renderCatList();
+    });
+  });
+  list.querySelectorAll('.done-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = btn.getAttribute('data-cat');
+      editingBillNames.delete(cat);
       renderCatList();
     });
   });
@@ -753,8 +928,10 @@ function renderCatList(){
   list.querySelectorAll('.cat-due-input').forEach(inp => {
     inp.addEventListener('input', async (e) => {
       const cat = e.target.getAttribute('data-cat');
-      const val = parseInt(e.target.value, 10);
-      categories[cat].dueDay = (val >= 1 && val <= 31) ? val : null;
+      const other = categories[cat].dueDay2;
+      const val = validateDueDayInput(e.target, other);
+      if(val === undefined) return; // invalid — leave saved value untouched
+      categories[cat].dueDay = val;
       renderCatSummary();
       await saveCategories();
       refreshUnpaidCarryovers();
@@ -763,8 +940,10 @@ function renderCatList(){
   list.querySelectorAll('.cat-due2-input').forEach(inp => {
     inp.addEventListener('input', async (e) => {
       const cat = e.target.getAttribute('data-cat');
-      const val = parseInt(e.target.value, 10);
-      categories[cat].dueDay2 = (val >= 1 && val <= 31) ? val : null;
+      const other = categories[cat].dueDay;
+      const val = validateDueDayInput(e.target, other);
+      if(val === undefined) return;
+      categories[cat].dueDay2 = val;
       renderCatSummary();
       renderPaycheckSummary();
       await saveCategories();
@@ -789,6 +968,7 @@ function renderCatList(){
   list.querySelectorAll('.del-cat-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const cat = e.target.getAttribute('data-cat');
+      if(!confirm(`Delete "${cat}"? This can't be undone.`)) return;
       delete categories[cat];
       await saveCategories();
       renderAll();
@@ -898,6 +1078,7 @@ function renderStats(){
 }
 
 let expandedGroups = new Set();
+let editingBillNames = new Set();
 
 function groupByGeneral(names){
   const groups = {};
@@ -1021,7 +1202,7 @@ function renderPaycheckSummary(){
         if(!groups[key]) groups[key] = { label: formatShortDate(pd), billTotal: 0, spent: 0, cats: [], income: getPaycheckIncome(key) };
         groups[key].billTotal += halfBudget;
         groups[key].spent += halfSpent;
-        groups[key].cats.push({ name, budget: halfBudget, spent: halfSpent });
+        groups[key].cats.push({ name, budget: halfBudget, spent: halfSpent, dueDay: dd });
       });
       return;
     }
@@ -1032,7 +1213,7 @@ function renderPaycheckSummary(){
     if(!groups[key]) groups[key] = { label: formatShortDate(pd), billTotal: 0, spent: 0, cats: [], income: getPaycheckIncome(key) };
     groups[key].billTotal += cat.amount;
     groups[key].spent += totalSpent;
-    groups[key].cats.push({ name, budget: cat.amount, spent: totalSpent });
+    groups[key].cats.push({ name, budget: cat.amount, spent: totalSpent, dueDay: cat.dueDay });
   });
 
   const sortedKeys = Object.keys(groups).sort();
@@ -1040,26 +1221,35 @@ function renderPaycheckSummary(){
     const g = groups[key];
     const coverage = g.income.expected - g.billTotal;
 
-    const subgroups = {};
-    g.cats.forEach(item => {
-      const gc = categories[item.name].generalCategory || 'Other';
-      if(!subgroups[gc]) subgroups[gc] = [];
-      subgroups[gc].push(item);
-    });
-    const subgroupHtml = Object.keys(subgroups).sort().map(gc => {
-      const items = subgroups[gc];
-      const gcBudget = items.reduce((a,it)=>a+it.budget,0);
-      const gcSpent = items.reduce((a,it)=>a+it.spent,0);
-      const toggleKey = 'pc:' + key + ':' + gc;
-      const expanded = expandedGroups.has(toggleKey);
-      const billList = expanded ? items.map(it => {
-        return `<div class="pc-bill-label" style="padding-left:12px;">${escapeHtml(it.name)}: ${fmt(it.spent)} / ${fmt(it.budget)}</div>`;
-      }).join('') : '';
-      return `<div class="pc-bill-label" data-toggle-key="${toggleKey}" style="cursor:pointer;">${expanded?'▾':'▸'} ${escapeHtml(gc)}: ${fmt(gcSpent)} / ${fmt(gcBudget)}</div>${billList}`;
+    const realCurrentMonth = new Date().toISOString().slice(0,7);
+    const isViewingRealCurrentMonth = currentMonth === realCurrentMonth;
+    const todayDay = new Date().getDate();
+    const billListHtml = [...g.cats].sort((a,b) => (a.dueDay||0) - (b.dueDay||0)).map(item => {
+      const paid = item.spent >= item.budget;
+      const owed = item.budget - item.spent;
+      const daysUntil = item.dueDay - todayDay;
+      let statusClass = '';
+      let statusText = 'Paid';
+      if(!paid){
+        statusText = fmt(owed) + ' due';
+        if(isViewingRealCurrentMonth && daysUntil < 0){ statusClass = 'overdue'; }
+        else if(isViewingRealCurrentMonth && daysUntil <= 3){ statusClass = 'soon'; }
+      }
+      return `
+        <div class="row" style="padding:5px 0;border-bottom:1px dashed var(--paper-line);">
+          <span class="cat-name" style="font-size:13px;">${escapeHtml(item.name)} <span class="due-badge">· due ${item.dueDay}</span></span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span class="due-badge ${statusClass}">${statusText} · ${fmt(item.budget)}</span>
+            ${!paid ? `<button class="btn mark-paid-btn" data-cat="${escapeHtml(item.name)}" data-owed="${owed}" style="padding:4px 8px;font-size:11px;">Mark paid</button>` : ''}
+          </span>
+        </div>
+      `;
     }).join('');
 
     const pct = g.billTotal > 0 ? Math.min(100, (g.spent/g.billTotal)*100) : (g.spent>0?100:0);
     const over = g.spent > g.billTotal;
+    const toggleKey = 'pc:' + key;
+    const expanded = expandedGroups.has(toggleKey);
     return `
       <div class="cat-summary">
         <div class="row">
@@ -1067,11 +1257,14 @@ function renderPaycheckSummary(){
           <span class="due-badge">${fmt(g.spent)} / ${fmt(g.billTotal)} bills</span>
         </div>
         <div class="bar-track"><div class="bar-fill ${over?'over':''}" style="width:${pct}%;"></div></div>
-        ${g.cats.length ? subgroupHtml : '<span class="pc-bill-label">No bills assigned</span>'}
         <div class="row" style="margin-top:6px;">
           <span class="due-badge">Income: ${fmt(g.income.expected)}</span>
           <span class="due-badge ${coverage < 0 ? 'overdue' : ''}">${coverage < 0 ? 'Short ' + fmt(Math.abs(coverage)) : 'Covers with ' + fmt(coverage) + ' left'}</span>
         </div>
+        <div class="row" style="cursor:pointer;margin-top:8px;" data-toggle-key="${toggleKey}">
+          <span class="pc-bill-label">${expanded?'▾':'▸'} Bills (${g.cats.length})</span>
+        </div>
+        ${expanded ? `<div style="margin-top:6px;">${g.cats.length ? billListHtml : '<span class="pc-bill-label">No bills assigned</span>'}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -1089,6 +1282,25 @@ function renderPaycheckSummary(){
   }
 
   box.innerHTML = html || '<div class="empty">Nothing to show yet.</div>';
+  box.querySelectorAll('.mark-paid-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const cat = btn.getAttribute('data-cat');
+      const owed = parseFloat(btn.getAttribute('data-owed'));
+      if(!owed || owed <= 0) return;
+      expenses.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+        category: cat,
+        amount: owed,
+        note: 'Marked paid',
+        paidDate: new Date().toISOString().slice(0,10),
+        date: new Date().toISOString().slice(0,10)
+      });
+      await saveExpenses();
+      renderAll();
+      refreshUnpaidCarryovers();
+    });
+  });
   box.querySelectorAll('[data-toggle-key]').forEach(el => {
     el.addEventListener('click', () => {
       const key = el.getAttribute('data-toggle-key');
@@ -1112,14 +1324,38 @@ function renderExpenseList(){
       </div>
       <div class="exp-right">
         <span class="exp-amt">${fmt(e.amount)}</span>
+        <button class="exp-edit" data-id="${e.id}" aria-label="Edit expense">✎</button>
         <button class="exp-del" data-id="${e.id}" aria-label="Delete expense">×</button>
       </div>
     </div>
   `;
   }).join('');
+  box.querySelectorAll('.exp-edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.target.getAttribute('data-id');
+      const exp = expenses.find(x => x.id === id);
+      if(!exp) return;
+      editingExpenseId = id;
+      document.getElementById('expCat').value = exp.category;
+      document.getElementById('expAmt').value = exp.amount;
+      document.getElementById('expNote').value = exp.note || '';
+      document.getElementById('expPaidDate').value = exp.paidDate || exp.date;
+      document.getElementById('addExpBtn').textContent = 'Save changes';
+      document.getElementById('cancelEditBtn').style.display = 'inline-block';
+      collapsedSections.delete('logExpense');
+      saveCollapsedSections();
+      applySectionCollapse('logExpense');
+      const sectionEl = document.getElementById('section-logExpense');
+      if(sectionEl && typeof sectionEl.scrollIntoView === 'function'){
+        sectionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  });
   box.querySelectorAll('.exp-del').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.target.getAttribute('data-id');
+      const exp = expenses.find(x => x.id === id);
+      if(!confirm(`Delete this ${exp ? fmt(exp.amount) : ''} expense${exp ? ' for ' + exp.category : ''}?`)) return;
       expenses = expenses.filter(x => x.id !== id);
       await saveExpenses();
       renderAll();
@@ -1174,6 +1410,32 @@ paycheckAnchorEl.addEventListener('input', syncPaycheckAnchor);
 paycheckAnchorEl.addEventListener('change', syncPaycheckAnchor);
 paycheckAnchorEl.addEventListener('blur', syncPaycheckAnchor);
 
+async function exportAllData(){
+  const data = {
+    exportedAt: new Date().toISOString(),
+    categories,
+    paycheckAnchor,
+    paycheckIncomes,
+    expensesByMonth: {}
+  };
+  const now = new Date();
+  for(let i=0;i<12;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const ym = d.toISOString().slice(0,7);
+    data.expensesByMonth[ym] = await loadExpensesForMonth(ym);
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ledger-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+document.getElementById('exportBtn').addEventListener('click', exportAllData);
+
 document.getElementById('syncBtn').addEventListener('click', async () => {
   const val = document.getElementById('syncCodeInput').value.trim();
   if(!val) return;
@@ -1210,15 +1472,44 @@ document.getElementById('addCatBtn').addEventListener('click', async () => {
   const amtInput = document.getElementById('newCatAmt');
   const dueInput = document.getElementById('newCatDue');
   const due2Input = document.getElementById('newCatDue2');
+  const errEl = document.getElementById('catAddError');
+  errEl.style.display = 'none';
+  dueInput.classList.remove('input-error');
+  due2Input.classList.remove('input-error');
+
   const name = nameInput.value.trim();
   const amt = parseFloat(amtInput.value) || 0;
-  const dueVal = parseInt(dueInput.value, 10);
-  const due2Val = parseInt(due2Input.value, 10);
+  const dueRaw = dueInput.value.trim();
+  const due2Raw = due2Input.value.trim();
+  const dueVal = dueRaw === '' ? null : parseInt(dueRaw, 10);
+  const due2Val = due2Raw === '' ? null : parseInt(due2Raw, 10);
+
   if(!name) return;
+
+  if(dueVal != null && (!Number.isInteger(dueVal) || dueVal < 1 || dueVal > 31)){
+    dueInput.classList.add('input-error');
+    errEl.textContent = 'Due day must be between 1 and 31.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(due2Val != null && (!Number.isInteger(due2Val) || due2Val < 1 || due2Val > 31)){
+    due2Input.classList.add('input-error');
+    errEl.textContent = '2nd due day must be between 1 and 31.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(dueVal != null && due2Val != null && dueVal === due2Val){
+    dueInput.classList.add('input-error');
+    due2Input.classList.add('input-error');
+    errEl.textContent = 'The two due days can\'t match — pick two different days.';
+    errEl.style.display = 'block';
+    return;
+  }
+
   categories[name] = {
     amount: amt,
-    dueDay: (dueVal >= 1 && dueVal <= 31) ? dueVal : null,
-    dueDay2: (due2Val >= 1 && due2Val <= 31) ? due2Val : null,
+    dueDay: dueVal,
+    dueDay2: due2Val,
     generalCategory: generalInput.value,
     balance: null,
     apr: null,
@@ -1245,20 +1536,42 @@ document.getElementById('addExpBtn').addEventListener('click', async () => {
   if(!cat){ errEl.textContent = 'Add a category first.'; errEl.style.display='block'; return; }
   if(!amtInput.value || isNaN(amt) || amt <= 0){ errEl.textContent = 'Enter an amount greater than 0.'; errEl.style.display='block'; return; }
   const today = new Date().toISOString().slice(0,10);
-  expenses.push({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-    category: cat,
-    amount: amt,
-    note: noteInput.value.trim(),
-    paidDate: paidInput.value || today,
-    date: today
-  });
+
+  if(editingExpenseId){
+    const exp = expenses.find(x => x.id === editingExpenseId);
+    if(exp){
+      exp.category = cat;
+      exp.amount = amt;
+      exp.note = noteInput.value.trim();
+      exp.paidDate = paidInput.value || today;
+    }
+    editingExpenseId = null;
+    document.getElementById('addExpBtn').textContent = 'Add expense';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+  } else {
+    expenses.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      category: cat,
+      amount: amt,
+      note: noteInput.value.trim(),
+      paidDate: paidInput.value || today,
+      date: today
+    });
+  }
   await saveExpenses();
   amtInput.value = '';
   noteInput.value = '';
   paidInput.value = '';
   renderAll();
   refreshUnpaidCarryovers();
+});
+
+document.getElementById('cancelEditBtn').addEventListener('click', () => {
+  editingExpenseId = null;
+  document.getElementById('addExpBtn').textContent = 'Add expense';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('expAmt').value = '';
+  document.getElementById('expNote').value = '';
 });
 
 const collapsedSections = new Set(JSON.parse(localStorage.getItem('collapsed-sections') || '[]'));
@@ -1288,6 +1601,50 @@ function initSectionToggles(){
     });
   });
 }
+
+function switchTab(tab){
+  document.querySelectorAll('.tab-content').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('data-tab-content') === tab);
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+  });
+  try{ localStorage.setItem('ledger-active-tab', tab); }catch(e){}
+}
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+});
+switchTab(localStorage.getItem('ledger-active-tab') || 'overview');
+
+document.getElementById('syncDot').addEventListener('click', () => switchTab('settings'));
+
+document.getElementById('quickAddBtn').addEventListener('click', () => {
+  switchTab('paychecks');
+  if(collapsedSections.has('logExpense')){
+    collapsedSections.delete('logExpense');
+    saveCollapsedSections();
+    applySectionCollapse('logExpense');
+  }
+  const sectionEl = document.getElementById('section-logExpense');
+  if(sectionEl && typeof sectionEl.scrollIntoView === 'function'){
+    sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  const catSelect = document.getElementById('expCat');
+  if(catSelect) catSelect.focus();
+});
+
+const darkModeBtn = document.getElementById('darkModeBtn');
+function applyDarkMode(isDark){
+  document.body.classList.toggle('dark', isDark);
+  darkModeBtn.textContent = isDark ? '☀️' : '🌙';
+}
+const savedDarkMode = localStorage.getItem('ledger-dark-mode') === 'true';
+applyDarkMode(savedDarkMode);
+darkModeBtn.addEventListener('click', () => {
+  const isDark = !document.body.classList.contains('dark');
+  applyDarkMode(isDark);
+  try{ localStorage.setItem('ledger-dark-mode', String(isDark)); }catch(e){}
+});
 
 (async function init(){
   initFirebase();
